@@ -10,7 +10,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4 # <-- ATUALIZADO
+      uses: actions/checkout@v4
 
     - name: Setup Node.js
       uses: actions/setup-node@v3
@@ -24,7 +24,7 @@ jobs:
       run: npm run make
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4 # <-- ATUALIZADO
+      uses: actions/upload-artifact@v4
       with:
         name: gestao-oficina-installer
-        path: out/make/squirrel.windows/x64/*.exe
+        path: out/make/nsis/*.exe # <-- Linha corrigida
