@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputDescricao = document.getElementById('produto-descricao');
     const inputEstoque = document.getElementById('produto-estoque');
     const inputPreco = document.getElementById('produto-preco');
+    const inputBusca = document.getElementById('input-busca-produto'); // CORREÇÃO: Referência ao campo de busca
+
+    let todosOsProdutos = []; // Nova variável global
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -27,32 +30,39 @@ document.addEventListener('DOMContentLoaded', () => {
         feedbackAlert.style.display = 'block';
         setTimeout(() => { feedbackAlert.style.display = 'none'; }, 4000);
     };
+    
+    // CORREÇÃO: A função de desenhar a tabela foi movida para fora, para ser reutilizável.
+    const desenharTabela = (produtosParaRenderizar) => {
+        tabelaProdutosBody.innerHTML = '';
+        if (produtosParaRenderizar.length === 0) {
+            tabelaProdutosBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500 py-4">Nenhum produto encontrado.</td></tr>`;
+            return;
+        }
+        produtosParaRenderizar.forEach(produto => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${produto.nome}</div><div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${produto.quantidade_em_estoque}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(produto.preco_unitario)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button data-action="editar-produto" data-produto-id="${produto.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
+                    <button data-action="remover-produto" data-produto-id="${produto.id}" class="text-red-600 hover:text-red-900">Remover</button>
+                </td>
+            `;
+            tabelaProdutosBody.appendChild(tr);
+        });
+    };
 
     // --- FUNÇÕES PRINCIPAIS (CRUD) ---
     const renderizarTabela = async () => {
         try {
             const response = await fetch(`${API_URL}/produtos`);
             if (!response.ok) throw new Error('Erro ao carregar produtos.');
+            
             const produtos = await response.json();
+            todosOsProdutos = produtos; // Guarda a lista completa
+            desenharTabela(todosOsProdutos); // Chama a função para desenhar a tabela inicial
 
-            tabelaProdutosBody.innerHTML = '';
-            if (produtos.length === 0) {
-                tabelaProdutosBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500 py-4">Nenhum produto cadastrado.</td></tr>`;
-                return;
-            }
-            produtos.forEach(produto => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${produto.nome}</div><div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}...</div></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${produto.quantidade_em_estoque}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(produto.preco_unitario)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button data-action="editar-produto" data-produto-id="${produto.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
-                        <button data-action="remover-produto" data-produto-id="${produto.id}" class="text-red-600 hover:text-red-900">Remover</button>
-                    </td>
-                `;
-                tabelaProdutosBody.appendChild(tr);
-            });
         } catch (error) {
             showAlert(error.message, false);
         }
@@ -148,6 +158,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // CORREÇÃO: O event listener da busca foi movido para aqui, para dentro do DOMContentLoaded.
+    inputBusca.addEventListener('input', () => {
+        const termo = inputBusca.value.toLowerCase();
+        const produtosFiltrados = todosOsProdutos.filter(produto => 
+            produto.nome.toLowerCase().includes(termo)
+        );
+        desenharTabela(produtosFiltrados);
+    });
+
     // --- INICIALIZAÇÃO ---
     renderizarTabela();
 });
+// CORREÇÃO: A chave '}' extra no final do ficheiro foi removida.
