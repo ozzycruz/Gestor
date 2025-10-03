@@ -9,7 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const clienteModal = document.getElementById('cliente-modal');
     const veiculoModal = document.getElementById('veiculo-modal');
     const feedbackAlert = document.getElementById('feedback-alert');
-    
+    const inputBusca = document.getElementById('input-busca-cliente'); // Assumindo que o ID do input de busca é este no seu HTML
+
+    let todosOsClientes = []; 
+
     // --- FUNÇÕES AUXILIARES ---
     const showAlert = (message, isSuccess = true) => {
         feedbackAlert.textContent = message;
@@ -19,30 +22,45 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- FUNÇÕES DE CLIENTE ---
+
+    // CORREÇÃO: Função para desenhar a tabela (agora completa)
+    const desenharTabela = (clientesParaRenderizar) => {
+        tabelaClientesBody.innerHTML = '';
+        if (clientesParaRenderizar.length === 0) {
+            tabelaClientesBody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-500 py-4">Nenhum cliente encontrado.</td></tr>`;
+            return;
+        }
+        clientesParaRenderizar.forEach(cliente => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${cliente.nome}</div></td>
+                <td class="px-6 py-4"><div class="text-sm text-gray-900">${cliente.telefone || ''}</div><div class="text-sm text-gray-500">${cliente.email || ''}</div></td>
+                <td class="px-6 py-4 text-right text-sm font-medium">
+                    <button data-action="ver-veiculos" data-cliente-id="${cliente.id}" data-cliente-nome="${cliente.nome.replace(/'/g, "\\'")}" class="bg-gray-600 text-white px-3 py-1 rounded-md text-xs hover:bg-gray-700 mr-2">Ver Veículos</button>
+                    <button data-action="editar-cliente" data-cliente-id="${cliente.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
+                    <button data-action="remover-cliente" data-cliente-id="${cliente.id}" class="text-red-600 hover:text-red-900">Remover</button>
+                </td>
+            `;
+            tabelaClientesBody.appendChild(tr);
+        });
+    };
+
+    // CORREÇÃO: Função para buscar os dados (agora refatorada)
     const renderizarTabelaClientes = async () => {
         try {
             const response = await fetch(`${API_URL}/clientes`);
             if (!response.ok) throw new Error('Erro ao carregar clientes.');
+            
             const clientes = await response.json();
-            tabelaClientesBody.innerHTML = '';
-            clientes.forEach(cliente => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-4"><div class="text-sm font-medium text-gray-900">${cliente.nome}</div></td>
-                    <td class="px-6 py-4"><div class="text-sm text-gray-900">${cliente.telefone || ''}</div><div class="text-sm text-gray-500">${cliente.email || ''}</div></td>
-                    <td class="px-6 py-4 text-right text-sm font-medium">
-                        <button data-action="ver-veiculos" data-cliente-id="${cliente.id}" data-cliente-nome="${cliente.nome.replace(/'/g, "\\'")}" class="bg-gray-600 text-white px-3 py-1 rounded-md text-xs hover:bg-gray-700 mr-2">Ver Veículos</button>
-                        <button data-action="editar-cliente" data-cliente-id="${cliente.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
-                        <button data-action="remover-cliente" data-cliente-id="${cliente.id}" class="text-red-600 hover:text-red-900">Remover</button>
-                    </td>
-                `;
-                tabelaClientesBody.appendChild(tr);
-            });
+            todosOsClientes = clientes; // Guarda a lista completa
+            desenharTabela(todosOsClientes); // Desenha a tabela com todos os clientes
         } catch (error) {
             showAlert(error.message, false);
         }
     };
 
+    // --- O resto das suas funções (abrirModalCliente, removerCliente, etc.) continuam iguais ---
+    // ... (cole aqui o resto das suas funções, desde 'abrirModalCliente' até 'removerVeiculo') ...
     const abrirModalCliente = async (isEdit = false, clienteId = null) => {
         const form = document.getElementById('cliente-form');
         form.reset();
@@ -51,9 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (isEdit && clienteId) {
             title.textContent = 'Editar Cliente';
-            const res = await fetch(`${API_URL}/clientes`); // Simplificado, idealmente seria /api/clientes/:id
-            const clientes = await res.json();
-            const cliente = clientes.find(c => c.id === clienteId);
+            // CORREÇÃO: Usando a lista que já temos em vez de fazer novo fetch
+            const cliente = todosOsClientes.find(c => c.id === clienteId);
             if (cliente) {
                 document.getElementById('cliente-id').value = cliente.id;
                 document.getElementById('cliente-nome').value = cliente.nome;
@@ -102,7 +119,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- FUNÇÕES DE VEÍCULO ---
     const abrirModalVeiculos = async (clienteId, clienteNome) => {
         document.getElementById('veiculo-modal-title').textContent = `Veículos de ${clienteNome}`;
         document.getElementById('veiculo-cliente-id').value = clienteId;
@@ -166,8 +182,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- INICIALIZAÇÃO E EVENTOS ---
-    renderizarTabelaClientes();
+    // --- EVENT LISTENERS ---
+    
+    // ADICIONADO: Event listener para o campo de busca
+    inputBusca.addEventListener('input', () => {
+        const termo = inputBusca.value.toLowerCase();
+        const clientesFiltrados = todosOsClientes.filter(cliente =>
+            cliente.nome.toLowerCase().includes(termo) ||
+            (cliente.telefone && cliente.telefone.includes(termo))
+        );
+        desenharTabela(clientesFiltrados);
+    });
+
     document.getElementById('btnNovoCliente').addEventListener('click', () => abrirModalCliente(false));
     document.getElementById('btn-cancelar-cliente').addEventListener('click', () => clienteModal.classList.remove('active'));
     document.getElementById('btn-fechar-veiculo').addEventListener('click', () => veiculoModal.classList.remove('active'));
@@ -197,4 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             removerVeiculo(parseInt(veiculoId), parseInt(clienteId));
         }
     });
+
+    // --- INICIALIZAÇÃO ---
+    renderizarTabelaClientes();
 });

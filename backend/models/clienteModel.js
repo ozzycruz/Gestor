@@ -3,8 +3,17 @@ const { dbAll, dbRun, dbGet } = require('../database/database');
 
 // --- NOVA FUNÇÃO DE BUSCA ---
 const searchByName = (termo) => {
-    const sql = 'SELECT * FROM Clientes WHERE nome LIKE ? ORDER BY nome';
-    const params = [`%${termo}%`];
+    const sql = `
+        SELECT * FROM Clientes
+        WHERE nome LIKE ? 
+        ORDER BY 
+            CASE 
+                WHEN nome LIKE ? THEN 1
+                ELSE 2 
+            END, 
+            nome
+    `;
+    const params = [`%${termo}%`, `${termo}%`];
     return dbAll(sql, params);
 };
 

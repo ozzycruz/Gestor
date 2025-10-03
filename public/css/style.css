@@ -142,3 +142,7 @@ body {
 .autocomplete-item:hover {
     background-color: #f3f4f6; /* bg-gray-100 */
 }
+.autocomplete-item.active {
+    background-color: #d1d5db; /* Um cinzento claro, pode ajustar a cor */
+    cursor: pointer;
+}

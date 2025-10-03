@@ -1,6 +1,33 @@
 // backend/controllers/servicoController.js
 const Servico = require('../models/servicoModel');
 
+// --- FUNÇÃO DE BUSCA ADICIONADA ---
+const buscarServicosPorNome = async (req, res) => {
+    try {
+        const termo = req.query.q;
+        if (!termo) {
+            return res.json([]);
+        }
+        const servicos = await Servico.searchByName(termo);
+        res.json(servicos);
+    } catch (err) {
+        res.status(500).json({ message: 'Erro ao buscar serviços.', error: err.message });
+    }
+};
+
+const buscarServicoPorId = async (req, res) => {
+    try {
+        const servico = await Servico.findById(req.params.id);
+        if (servico) {
+            res.json(servico);
+        } else {
+            res.status(404).json({ message: 'Serviço não encontrado.' });
+        }
+    } catch (err) {
+        res.status(500).json({ message: 'Erro ao buscar serviço.', error: err.message });
+    }
+};
+
 const listarServicos = async (req, res) => {
     try {
         const servicos = await Servico.findAll();
@@ -41,5 +68,7 @@ module.exports = {
     listarServicos,
     criarServico,
     atualizarServico,
-    removerServico
+    removerServico,
+    buscarServicoPorId,
+    buscarServicosPorNome // <-- EXPORTAR A NOVA FUNÇÃO
 };

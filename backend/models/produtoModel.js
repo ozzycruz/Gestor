@@ -1,12 +1,19 @@
 // backend/models/produtoModel.js
 const { dbAll, dbGet, dbRun } = require('../database/database');
 
-// --- NOVA FUNÇÃO DE BUSCA ---
+// --- FUNÇÃO DE BUSCA COM LIKE ---
 const searchByName = (termo) => {
-    // O operador '%' é um coringa. '%termo%' busca qualquer registro
-    // que contenha o termo em qualquer parte do nome.
-    const sql = 'SELECT * FROM Produtos WHERE nome LIKE ? ORDER BY nome';
-    const params = [`%${termo}%`];
+    const sql = `
+        SELECT * FROM Produtos 
+        WHERE nome LIKE ? 
+        ORDER BY 
+            CASE 
+                WHEN nome LIKE ? THEN 1
+                ELSE 2 
+            END, 
+            nome
+    `;
+    const params = [`%${termo}%`, `${termo}%`];
     return dbAll(sql, params);
 };
 
@@ -17,6 +24,8 @@ const findAll = () => {
 const findById = (id) => {
     return dbGet('SELECT * FROM Produtos WHERE id = ?', [id]);
 };
+
+// ... (resto das funções criar, atualizar, remover ficam iguais) ...
 
 const create = (produto) => {
     const { nome, descricao, quantidade_em_estoque, preco_unitario } = produto;
@@ -44,5 +53,5 @@ module.exports = {
     create,
     update,
     remove,
-    searchByName // <-- Adicionar a nova função
+    searchByName // <-- EXPORTAR A NOVA FUNÇÃO
 };

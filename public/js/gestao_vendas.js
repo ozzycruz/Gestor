@@ -1,38 +1,15 @@
 // public/js/gestao_vendas.js
 
-// O evento DOMContentLoaded garante que todo o código JavaScript só será executado
-// após o HTML da página ter sido completamente carregado.
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURAÇÃO E VARIÁVEIS GLOBAIS ---
-
-    // Define a URL base para todas as chamadas à API do backend.
     const API_URL = 'http://localhost:3002/api';
-
-    // Variáveis para armazenar em memória os dados vindos do backend.
-    let listaClientes = [],
-        listaProdutos = [],
-        listaServicos = [];
-
-    // Objeto que representa o estado atual da venda (o "carrinho de compras").
-    let vendaAtual = {
-        cliente_id: null,
-        itens: [],
-        total: 0
-    };
-
-    // Objeto para guardar temporariamente o item selecionado nos campos de autocomplete.
-    let selectedItems = {
-        cliente: null,
-        produto: null,
-        servico: null
-    };
-    
-    // Variável para armazenar os detalhes da última venda salva, para fins de impressão.
+    let listaClientes = [], listaProdutos = [], listaServicos = [];
+    let vendaAtual = { cliente_id: null, itens: [], total: 0 };
+    let selectedItems = { cliente: null, produto: null, servico: null };
     let ultimaVendaSalva = null;
 
     // --- REFERÊNCIAS AOS ELEMENTOS DO DOM ---
-
     const btnAddProduto = document.getElementById('btn-add-produto');
     const btnAddServico = document.getElementById('btn-add-servico');
     const btnFinalizarVenda = document.getElementById('btn-finalizar-venda');
@@ -46,11 +23,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImprimirRecibo = document.getElementById('btn-imprimir-recibo');
 
     // --- FUNÇÕES AUXILIARES ---
-
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-
     const showAlert = (message, isSuccess = true) => {
         const feedbackAlert = document.getElementById('feedback-alert');
+        if (!feedbackAlert) return;
         feedbackAlert.textContent = message;
         feedbackAlert.className = `p-4 mb-4 text-sm rounded-lg ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
         feedbackAlert.classList.remove('hidden');
@@ -59,54 +35,45 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNÇÕES PRINCIPAIS ---
 
-    const popularDados = async () => {
-        try {
-            const [clientesRes, produtosRes, servicosRes] = await Promise.all([
-                fetch(`${API_URL}/clientes`),
-                fetch(`${API_URL}/produtos`),
-                fetch(`${API_URL}/servicos`)
-            ]);
-            listaClientes = await clientesRes.json();
-            listaProdutos = await produtosRes.json();
-            listaServicos = await servicosRes.json();
-
-            setupAutocomplete('input-search-cliente', 'results-cliente', listaClientes, 'cliente');
-            setupAutocomplete('input-search-produto', 'results-produto', listaProdutos, 'produto');
-            setupAutocomplete('input-search-servico', 'results-servico', listaServicos, 'servico');
-        } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-            showAlert('Não foi possível carregar os dados do servidor.', false);
-        }
-    };
-
-const setupAutocomplete = (inputId, resultsId, items, type) => {
+const setupAutocomplete = (inputId, resultsId, type) => {
     const input = document.getElementById(inputId);
     const results = document.getElementById(resultsId);
+    let activeIndex = -1;
 
-    input.addEventListener('input', async () => { // Adiciona async aqui
+    const updateActiveItem = () => {
+        const items = results.querySelectorAll('.autocomplete-item');
+        items.forEach((item, index) => {
+            if (index === activeIndex) {
+                item.classList.add('active');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    };
+
+    input.addEventListener('input', async () => {
         const query = input.value.toLowerCase();
         results.innerHTML = '';
+        activeIndex = -1;
         selectedItems[type] = null;
         if (type === 'cliente') vendaAtual.cliente_id = null;
         
-        if (!query || query.length < 2) { // Só busca com 2+ caracteres
+        if (!query || query.length < 2) {
             results.classList.add('hidden');
             return;
         }
 
-        // --- LÓGICA ANTIGA DE FILTRO LOCAL É REMOVIDA ---
-        // const filteredItems = items.filter(...) 
-
-        // --- LÓGICA NOVA DE BUSCA NA API ---
         try {
-            // Define o endpoint correto baseado no tipo
             let searchEndpoint = '';
             if (type === 'produto') searchEndpoint = 'produtos';
             else if (type === 'cliente') searchEndpoint = 'clientes';
             else if (type === 'servico') searchEndpoint = 'servicos';
 
             const response = await fetch(`${API_URL}/${searchEndpoint}/search?q=${query}`);
-            const filteredItems = await response.json(); // O backend retorna a lista já filtrada
+            if (!response.ok) throw new Error('A resposta da rede não foi bem-sucedida.');
+            
+            const filteredItems = await response.json();
 
             results.classList.remove('hidden');
             if (filteredItems.length === 0) {
@@ -115,7 +82,14 @@ const setupAutocomplete = (inputId, resultsId, items, type) => {
                 filteredItems.forEach((item) => {
                     const div = document.createElement('div');
                     div.className = 'autocomplete-item';
-                    div.textContent = item.preco_unitario ? `${item.nome} (${formatCurrency(item.preco_unitario)})` : (item.preco ? `${item.nome} (${formatCurrency(item.preco)})` : item.nome);
+                    
+                    // --- CORREÇÃO APLICADA AQUI ---
+                    if (type === 'cliente') {
+                        div.textContent = item.nome;
+                    } else {
+                        const preco = item.preco_unitario || item.preco || 0;
+                        div.textContent = `${item.nome} (${formatCurrency(preco)})`;
+                    }
                     
                     div.addEventListener('click', () => {
                         input.value = item.nome;
@@ -128,23 +102,61 @@ const setupAutocomplete = (inputId, resultsId, items, type) => {
             }
         } catch (error) {
             console.error(`Erro ao buscar ${type}:`, error);
-            results.innerHTML = '<div class="autocomplete-item-none">Erro na busca.</div>';
+            results.innerHTML = `<div class="autocomplete-item-none">Erro na busca.</div>`;
+        }
+    });
+
+    // ... (o resto da função com a lógica do teclado continua igual) ...
+    input.addEventListener('keydown', (e) => {
+        const items = results.querySelectorAll('.autocomplete-item');
+        if (results.classList.contains('hidden') || items.length === 0) return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            updateActiveItem();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            updateActiveItem();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex > -1) {
+                items[activeIndex].click();
+                
+                if (type === 'produto') {
+                    document.getElementById('input-produto-qtd').focus();
+                } else if (type === 'servico') {
+                    document.getElementById('input-servico-qtd').focus();
+                }
+            }
+        } else if (e.key === 'Escape') {
+            results.classList.add('hidden');
         }
     });
 
     document.addEventListener('click', (e) => {
-        if (e.target.closest('.autocomplete-container') !== input.parentElement) {
+        if (!e.target.closest('.autocomplete-container')) {
             results.classList.add('hidden');
         }
     });
 };
+    
+    const popularDadosIniciais = async () => {
+        try {
+            // Apenas carrega os clientes para a impressão, o resto é via busca
+            const clientesRes = await fetch(`${API_URL}/clientes`);
+            listaClientes = await clientesRes.json();
+        } catch (error) {
+            console.error("Erro ao carregar clientes:", error);
+        }
+    };
 
     const renderizarItensVenda = () => {
         itensVendaContainer.innerHTML = '';
         vendaAtual.total = 0;
 
         if (vendaAtual.itens.length === 0) {
-            itensVendaContainer.appendChild(carrinhoVazioMsg);
             carrinhoVazioMsg.style.display = 'block';
         } else {
             carrinhoVazioMsg.style.display = 'none';
@@ -166,65 +178,80 @@ const setupAutocomplete = (inputId, resultsId, items, type) => {
         totalValorEl.textContent = formatCurrency(vendaAtual.total);
         btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
     };
-
-    const adicionarProduto = () => {
+    
+    // AdicionarProduto e AdicionarServico agora precisam buscar o item da API
+    // para garantir que têm a informação mais atualizada, já que não temos mais a lista completa.
+    
+    const adicionarProduto = async () => {
         const produtoId = selectedItems.produto;
         const quantidade = parseInt(document.getElementById('input-produto-qtd').value);
 
-        if (!produtoId) return alert('Selecione um produto da lista.');
-        if (!quantidade || quantidade <= 0) return alert('Insira uma quantidade válida.');
+        if (!produtoId) return showAlert('Selecione um produto da lista.', false);
+        if (!quantidade || quantidade <= 0) return showAlert('Insira uma quantidade válida.', false);
         
-        const produto = listaProdutos.find(p => p.id === produtoId);
-        const itemExistente = vendaAtual.itens.find(item => item.id === produtoId && item.tipo === 'produto');
-        
-        const qtdTotalNoCarrinho = (itemExistente ? itemExistente.quantidade : 0) + quantidade;
-        if (qtdTotalNoCarrinho > produto.quantidade_em_estoque) return alert(`Stock insuficiente. Disponível: ${produto.quantidade_em_estoque}`);
+        try {
+            const res = await fetch(`${API_URL}/produtos/${produtoId}`);
+            if (!res.ok) throw new Error('Produto não encontrado.');
+            const produto = await res.json();
+            
+            const itemExistente = vendaAtual.itens.find(item => item.id === produtoId && item.tipo === 'produto');
+            const qtdTotalNoCarrinho = (itemExistente ? itemExistente.quantidade : 0) + quantidade;
+            if (qtdTotalNoCarrinho > produto.quantidade_em_estoque) return showAlert(`Stock insuficiente. Disponível: ${produto.quantidade_em_estoque}`, false);
 
-        if (itemExistente) {
-            itemExistente.quantidade += quantidade;
-            itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoUnitario;
-        } else {
-            vendaAtual.itens.push({
-                id: produto.id,
-                nome: produto.nome,
-                tipo: 'produto',
-                quantidade: quantidade,
-                precoUnitario: parseFloat(produto.preco_unitario),
-                subtotal: quantidade * parseFloat(produto.preco_unitario)
-            });
+            if (itemExistente) {
+                itemExistente.quantidade += quantidade;
+                itemExistente.subtotal = itemExistente.quantidade * itemExistente.precoUnitario;
+            } else {
+                vendaAtual.itens.push({
+                    id: produto.id,
+                    nome: produto.nome,
+                    tipo: 'produto',
+                    quantidade: quantidade,
+                    precoUnitario: parseFloat(produto.preco_unitario),
+                    subtotal: quantidade * parseFloat(produto.preco_unitario)
+                });
+            }
+            renderizarItensVenda();
+            document.getElementById('input-search-produto').value = '';
+            selectedItems.produto = null;
+            document.getElementById('input-produto-qtd').value = 1;
+        } catch (error) {
+            showAlert(error.message, false);
         }
-        renderizarItensVenda();
-        document.getElementById('input-search-produto').value = '';
-        selectedItems.produto = null;
     };
 
-const adicionarServico = () => {
-    const servicoId = selectedItems.servico;
-    // --- LINHAS NOVAS ---
-    const quantidadeInput = document.getElementById('input-servico-qtd');
-    const quantidade = parseInt(quantidadeInput.value);
+    const adicionarServico = async () => {
+        const servicoId = selectedItems.servico;
+        const quantidade = parseInt(document.getElementById('input-servico-qtd').value);
 
-    if (!servicoId) return alert('Selecione um serviço da lista.');
-    // --- VALIDAÇÃO NOVA ---
-    if (!quantidade || quantidade <= 0) return alert('Insira uma quantidade válida.');
-    
-    if (vendaAtual.itens.some(item => item.id === servicoId && item.tipo === 'serviço')) return alert('Este serviço já foi adicionado.');
-    
-    const servico = listaServicos.find(s => s.id === servicoId);
-    vendaAtual.itens.push({
-        id: servico.id,
-        nome: servico.nome,
-        tipo: 'serviço',
-        quantidade: quantidade, // <-- USA A VARIÁVEL
-        precoUnitario: parseFloat(servico.preco),
-        subtotal: quantidade * parseFloat(servico.preco) // <-- CALCULA O SUBTOTAL
-    });
-    renderizarItensVenda();
-    document.getElementById('input-search-servico').value = '';
-    // --- LINHA NOVA PARA RESETAR O CAMPO DE QUANTIDADE ---
-    quantidadeInput.value = 1; 
-    selectedItems.servico = null;
-};
+        if (!servicoId) return showAlert('Selecione um serviço da lista.', false);
+        if (!quantidade || quantidade <= 0) return showAlert('Insira uma quantidade válida.', false);
+        
+        try {
+            const res = await fetch(`${API_URL}/servicos/${servicoId}`);
+            if (!res.ok) throw new Error('Serviço não encontrado.');
+            const servico = await res.json();
+            
+            if (vendaAtual.itens.some(item => item.id === servicoId && item.tipo === 'serviço')) {
+                return showAlert('Este serviço já foi adicionado.', false);
+            }
+            
+            vendaAtual.itens.push({
+                id: servico.id,
+                nome: servico.nome,
+                tipo: 'serviço',
+                quantidade: quantidade,
+                precoUnitario: parseFloat(servico.preco),
+                subtotal: quantidade * parseFloat(servico.preco)
+            });
+            renderizarItensVenda();
+            document.getElementById('input-search-servico').value = '';
+            document.getElementById('input-servico-qtd').value = 1; 
+            selectedItems.servico = null;
+        } catch (error) {
+            showAlert(error.message, false);
+        }
+    };
 
     const removerItem = (index) => {
         vendaAtual.itens.splice(index, 1);
@@ -244,11 +271,16 @@ const adicionarServico = () => {
 
             ultimaVendaSalva = { ...vendaAtual, id: result.id, data: new Date() };
             confirmacaoTextoEl.textContent = `Venda #${result.id} | Valor Total: ${formatCurrency(vendaAtual.total)}`;
-            vendaForm.style.display = 'none';
+            
+            // Esconde o formulário e mostra a confirmação
+            const parentGrid = vendaForm.querySelector('.grid');
+            if(parentGrid) parentGrid.style.display = 'none';
+
             vendaConfirmacaoEl.style.display = 'block';
 
         } catch (error) {
-            alert(`Erro: ${error.message}`);
+            showAlert(`Erro: ${error.message}`, false);
+        } finally {
             btnFinalizarVenda.disabled = false;
         }
     };
@@ -275,29 +307,11 @@ const adicionarServico = () => {
         const htmlContent = new XMLSerializer().serializeToString(clone);
         const filename = `Venda_${ultimaVendaSalva.id}.pdf`;
 
-        // Envia o HTML e o nome do ficheiro para o processo principal (main.js)
         window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
     };
 
     const resetarParaNovaVenda = () => {
-        vendaAtual = {
-            cliente_id: null,
-            itens: [],
-            total: 0
-        };
-        selectedItems = {
-            cliente: null,
-            produto: null,
-            servico: null
-        };
-        // O método reset() só funciona em elementos <form>
-        if (vendaForm) {
-            vendaForm.reset();
-        }
-        vendaForm.style.display = 'block';
-        vendaConfirmacaoEl.style.display = 'none';
-        popularDados();
-        renderizarItensVenda();
+        window.location.reload();
     };
 
     // --- REGISTO DOS EVENT LISTENERS ---
@@ -319,7 +333,10 @@ const adicionarServico = () => {
     });
 
     // --- INICIALIZAÇÃO DA PÁGINA ---
+    setupAutocomplete('input-search-cliente', 'results-cliente', 'cliente');
+    setupAutocomplete('input-search-produto', 'results-produto', 'produto');
+    setupAutocomplete('input-search-servico', 'results-servico', 'servico');
     
-    popularDados();
+    popularDadosIniciais();
     renderizarItensVenda();
 });

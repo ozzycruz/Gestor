@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputNome = document.getElementById('servico-nome');
     const inputDescricao = document.getElementById('servico-descricao');
     const inputPreco = document.getElementById('servico-preco');
+    const inputBusca = document.getElementById('input-busca-servico'); // CORRIGIDO
+
+    let todosOsServicos = [];
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -27,30 +30,35 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { feedbackAlert.style.display = 'none'; }, 4000);
     };
 
-    // --- FUNÇÕES PRINCIPAIS (CRUD) ---
+    // --- FUNÇÕES PRINCIPAIS ---
+
+    const desenharTabela = (servicosParaRenderizar) => {
+        tabelaServicosBody.innerHTML = '';
+        if (servicosParaRenderizar.length === 0) {
+            tabelaServicosBody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-500 py-4">Nenhum serviço encontrado.</td></tr>`;
+            return;
+        }
+        servicosParaRenderizar.forEach(servico => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${servico.nome}</div><div class="text-sm text-gray-500">${(servico.descricao || '').substring(0, 40)}...</div></td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(servico.preco)}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button data-action="editar-servico" data-servico-id="${servico.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
+                    <button data-action="remover-servico" data-servico-id="${servico.id}" class="text-red-600 hover:text-red-900">Remover</button>
+                </td>
+            `;
+            tabelaServicosBody.appendChild(tr);
+        });
+    };
+
     const renderizarTabela = async () => {
         try {
             const response = await fetch(`${API_URL}/servicos`);
             if (!response.ok) throw new Error('Erro ao carregar serviços.');
             const servicos = await response.json();
-
-            tabelaServicosBody.innerHTML = '';
-            if (servicos.length === 0) {
-                tabelaServicosBody.innerHTML = `<tr><td colspan="3" class="text-center text-gray-500 py-4">Nenhum serviço cadastrado.</td></tr>`;
-                return;
-            }
-            servicos.forEach(servico => {
-                const tr = document.createElement('tr');
-                tr.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${servico.nome}</div><div class="text-sm text-gray-500">${(servico.descricao || '').substring(0, 40)}...</div></td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(servico.preco)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button data-action="editar-servico" data-servico-id="${servico.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
-                        <button data-action="remover-servico" data-servico-id="${servico.id}" class="text-red-600 hover:text-red-900">Remover</button>
-                    </td>
-                `;
-                tabelaServicosBody.appendChild(tr);
-            });
+            todosOsServicos = servicos;
+            desenharTabela(todosOsServicos);
         } catch (error) {
             showAlert(error.message, false);
         }
@@ -61,10 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         inputId.value = '';
         if (isEdit && servicoId) {
             modalTitle.textContent = 'Editar Serviço';
-            // Idealmente teríamos uma rota /api/servicos/:id
-            const response = await fetch(`${API_URL}/servicos`);
-            const servicos = await response.json();
-            const servico = servicos.find(s => s.id === servicoId);
+            const servico = todosOsServicos.find(s => s.id === servicoId);
             if (servico) {
                 inputId.value = servico.id;
                 inputNome.value = servico.nome;
@@ -139,6 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (action === 'remover-servico') {
             removerServico(servicoId);
         }
+    });
+
+    inputBusca.addEventListener('input', () => {
+        const termo = inputBusca.value.toLowerCase();
+        const servicosFiltrados = todosOsServicos.filter(servico => 
+            servico.nome.toLowerCase().includes(termo)
+        );
+        desenharTabela(servicosFiltrados);
     });
 
     // --- INICIALIZAÇÃO ---
