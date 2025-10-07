@@ -5,7 +5,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO E VARIÁVEIS GLOBAIS ---
     const API_URL = 'http://localhost:3002/api';
     let listaClientes = [], listaProdutos = [], listaServicos = [];
-    let vendaAtual = { cliente_id: null, itens: [], total: 0 };
+    let vendaAtual = {
+    cliente_id: null,
+    itens: [],
+    total: 0,
+    subtotal: 0, // Adicionado
+    desconto_tipo: 'R$', // Adicionado
+    desconto_valor: 0 // Adicionado
+};
     let selectedItems = { cliente: null, produto: null, servico: null };
     let ultimaVendaSalva = null;
 
@@ -21,6 +28,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmacaoTextoEl = document.getElementById('confirmacao-texto');
     const btnNovaVenda = document.getElementById('btn-nova-venda');
     const btnImprimirRecibo = document.getElementById('btn-imprimir-recibo');
+    const inputDescontoValor = document.getElementById('desconto-valor');
+    const selectDescontoTipo = document.getElementById('desconto-tipo');
+
+    inputDescontoValor.addEventListener('input', () => {
+        vendaAtual.desconto_valor = parseFloat(inputDescontoValor.value) || 0;
+        renderizarItensVenda(); // Recalcula tudo
+    });
+
+    selectDescontoTipo.addEventListener('change', () => {
+        vendaAtual.desconto_tipo = selectDescontoTipo.value;
+        renderizarItensVenda(); // Recalcula tudo
+    });
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -152,33 +171,57 @@ const setupAutocomplete = (inputId, resultsId, type) => {
         }
     };
 
-    const renderizarItensVenda = () => {
-        itensVendaContainer.innerHTML = '';
-        vendaAtual.total = 0;
+const renderizarItensVenda = () => {
+    itensVendaContainer.innerHTML = '';
+    let subtotal = 0;
 
-        if (vendaAtual.itens.length === 0) {
-            carrinhoVazioMsg.style.display = 'block';
-        } else {
-            carrinhoVazioMsg.style.display = 'none';
-            vendaAtual.itens.forEach((item, index) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'flex justify-between items-center text-sm p-2 bg-gray-50 rounded';
-                itemDiv.innerHTML = `
-                    <div class="flex-grow">
-                        <p class="font-semibold text-gray-800">${item.nome} <span class="text-xs text-gray-500">(${item.tipo})</span></p>
-                        <p class="text-gray-600">${item.quantidade} x ${formatCurrency(item.precoUnitario)}</p>
-                    </div>
-                    <p class="font-semibold w-24 text-right">${formatCurrency(item.subtotal)}</p>
-                    <button type="button" data-action="remover-item" data-index="${index}" class="ml-3 text-red-500 hover:text-red-700 font-bold">X</button>`;
-                itensVendaContainer.appendChild(itemDiv);
-                vendaAtual.total += item.subtotal;
-            });
-        }
+    if (vendaAtual.itens.length === 0) {
+        carrinhoVazioMsg.style.display = 'block';
+    } else {
+        carrinhoVazioMsg.style.display = 'none';
+        vendaAtual.itens.forEach((item, index) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'flex justify-between items-center text-sm p-2 bg-gray-50 rounded';
+            itemDiv.innerHTML = `
+                <div class="flex-grow">
+                    <p class="font-semibold text-gray-800">${item.nome} <span class="text-xs text-gray-500">(${item.tipo})</span></p>
+                    <p class="text-gray-600">${item.quantidade} x ${formatCurrency(item.precoUnitario)}</p>
+                </div>
+                <p class="font-semibold w-24 text-right">${formatCurrency(item.subtotal)}</p>
+                <button type="button" data-action="remover-item" data-index="${index}" class="ml-3 text-red-500 hover:text-red-700 font-bold">X</button>`;
+            itensVendaContainer.appendChild(itemDiv);
+            subtotal += item.subtotal; // Calcula o subtotal aqui
+        });
+    }
 
-        totalValorEl.textContent = formatCurrency(vendaAtual.total);
-        btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
-    };
+    // Lógica de cálculo do desconto e total final
+    let valorDoDesconto = 0;
+    if (vendaAtual.desconto_tipo === '%') {
+        valorDoDesconto = subtotal * (vendaAtual.desconto_valor / 100);
+    } else {
+        valorDoDesconto = vendaAtual.desconto_valor;
+    }
     
+    if (valorDoDesconto > subtotal) valorDoDesconto = subtotal;
+
+    const totalFinal = subtotal - valorDoDesconto;
+
+    vendaAtual.subtotal = subtotal;
+    vendaAtual.total = totalFinal;
+
+    // Atualiza a interface
+    document.getElementById('subtotal-valor').textContent = formatCurrency(subtotal);
+    const descontoAplicadoContainer = document.getElementById('desconto-aplicado-container');
+    if (valorDoDesconto > 0) {
+        document.getElementById('desconto-aplicado-valor').textContent = `- ${formatCurrency(valorDoDesconto)}`;
+        descontoAplicadoContainer.classList.remove('hidden');
+    } else {
+        descontoAplicadoContainer.classList.add('hidden');
+    }
+    document.getElementById('total-valor').textContent = formatCurrency(totalFinal);
+
+    btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
+};
     // AdicionarProduto e AdicionarServico agora precisam buscar o item da API
     // para garantir que têm a informação mais atualizada, já que não temos mais a lista completa.
     
@@ -285,30 +328,52 @@ const setupAutocomplete = (inputId, resultsId, type) => {
         }
     };
 
-    const imprimirRecibo = () => {
-        if (!ultimaVendaSalva) return;
+const imprimirRecibo = () => {
+    if (!ultimaVendaSalva) return;
 
-        const template = document.getElementById('recibo-template');
-        const clone = template.content.cloneNode(true);
-        const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
+    const template = document.getElementById('recibo-template');
+    const clone = template.content.cloneNode(true);
+    const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
 
-        clone.querySelector('[data-recibo="venda-id"]').textContent = ultimaVendaSalva.id;
-        clone.querySelector('[data-recibo="data"]').textContent = new Date(ultimaVendaSalva.data).toLocaleDateString('pt-BR');
-        clone.querySelector('[data-recibo="cliente-nome"]').textContent = cliente ? cliente.nome : 'Consumidor Final';
+    // Preenche os dados gerais
+    clone.querySelector('[data-recibo="venda-id"]').textContent = ultimaVendaSalva.id;
+    clone.querySelector('[data-recibo="data"]').textContent = new Date(ultimaVendaSalva.data).toLocaleDateString('pt-BR');
+    clone.querySelector('[data-recibo="cliente-nome"]').textContent = cliente ? cliente.nome : 'Consumidor Final';
 
-        const tabelaItensBody = clone.querySelector('[data-recibo="itens-tabela"]');
-        ultimaVendaSalva.itens.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${item.nome} (${item.tipo})</td><td style="text-align: center;">${item.quantidade}</td><td style="text-align: right;">${formatCurrency(item.precoUnitario)}</td><td style="text-align: right;">${formatCurrency(item.subtotal)}</td>`;
-            tabelaItensBody.appendChild(tr);
-        });
-        clone.querySelector('[data-recibo="total"]').textContent = formatCurrency(ultimaVendaSalva.total);
+    // Preenche a tabela de itens
+    const tabelaItensBody = clone.querySelector('[data-recibo="itens-tabela"]');
+    ultimaVendaSalva.itens.forEach(item => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${item.nome} (${item.tipo})</td>
+            <td class="text-center">${item.quantidade}</td>
+            <td class="text-right">${formatCurrency(item.precoUnitario)}</td>
+            <td class="text-right">${formatCurrency(item.subtotal)}</td>
+        `;
+        tabelaItensBody.appendChild(tr);
+    });
 
-        const htmlContent = new XMLSerializer().serializeToString(clone);
-        const filename = `Venda_${ultimaVendaSalva.id}.pdf`;
+    // Preenche a secção de totais e desconto
+    clone.querySelector('[data-recibo="subtotal"]').textContent = formatCurrency(ultimaVendaSalva.subtotal);
+    clone.querySelector('[data-recibo="total"]').textContent = formatCurrency(ultimaVendaSalva.total);
 
-        window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
-    };
+    const descontoInfo = clone.querySelector('[data-recibo="desconto-info"]');
+    if (ultimaVendaSalva.desconto_valor > 0) {
+        let valorDoDesconto = 0;
+        if (ultimaVendaSalva.desconto_tipo === '%') {
+            valorDoDesconto = ultimaVendaSalva.subtotal * (ultimaVendaSalva.desconto_valor / 100);
+        } else {
+            valorDoDesconto = ultimaVendaSalva.desconto_valor;
+        }
+        clone.querySelector('[data-recibo="desconto"]').textContent = `- ${formatCurrency(valorDoDesconto)}`;
+        descontoInfo.classList.remove('hidden');
+    }
+
+    const htmlContent = new XMLSerializer().serializeToString(clone);
+    const filename = `Venda_${ultimaVendaSalva.id}.pdf`;
+
+    window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
+};
 
     const resetarParaNovaVenda = () => {
         window.location.reload();

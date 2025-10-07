@@ -80,6 +80,8 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = 'Novo Serviço';
         }
         modal.classList.add('active');
+            // Força o foco no primeiro campo após a animação do modal (100ms)
+    setTimeout(() => { document.getElementById('servico-nome').focus(); }, 100);
     };
 
     const fecharModal = () => modal.classList.remove('active');

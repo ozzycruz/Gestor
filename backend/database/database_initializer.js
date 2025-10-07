@@ -18,6 +18,28 @@ const runMigrations = async () => {
             console.error('Erro durante a migração da base de dados:', err.message);
         }
     }
+    // Migração para a tabela Vendas
+const colunasVenda = await dbAll("PRAGMA table_info(Vendas);");
+const temDescontoTipo = colunasVenda.some(col => col.name === 'desconto_tipo');
+const temDescontoValor = colunasVenda.some(col => col.name === 'desconto_valor');
+
+if (!temDescontoTipo) {
+    console.log('MIGRANDO: A adicionar coluna "desconto_tipo" a Vendas...');
+    await dbRun('ALTER TABLE Vendas ADD COLUMN desconto_tipo TEXT;');
+}
+if (!temDescontoValor) {
+    console.log('MIGRANDO: A adicionar coluna "desconto_valor" a Vendas...');
+    await dbRun('ALTER TABLE Vendas ADD COLUMN desconto_valor REAL DEFAULT 0;');
+}
+        // --- NOVA MIGRAÇÃO PARA SERVICOS_VENDA ---
+        const colunasServicoVenda = await dbAll("PRAGMA table_info(Servicos_Venda);");
+        if (!colunasServicoVenda.some(c => c.name === 'quantidade')) {
+            console.log('MIGRANDO: A adicionar coluna "quantidade" a Servicos_Venda...');
+            await dbRun('ALTER TABLE Servicos_Venda ADD COLUMN quantidade INTEGER NOT NULL DEFAULT 1;');
+            console.log('Migração concluída com sucesso!');
+        }
+        
+
 };
 
 // Função que cria todas as tabelas (se não existirem)

@@ -91,6 +91,8 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = 'Novo Produto';
         }
         modal.classList.add('active');
+            // Força o foco no primeiro campo após a animação do modal (100ms)
+    setTimeout(() => { document.getElementById('produto-nome').focus(); }, 100);
     };
 
     const fecharModal = () => modal.classList.remove('active');
