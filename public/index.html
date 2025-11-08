@@ -77,6 +77,7 @@
                 </div>
                 <span class="go-arrow">Enter &rarr;</span>
             </a>
+            
 
         </main>
 
@@ -86,8 +87,151 @@
     </div>
 
     <script>
+    // 'DOMContentLoaded' garante que o HTML foi carregado antes de tentarmos adicionar eventos
+    document.addEventListener('DOMContentLoaded', () => {
+
+        // --- 1. O SEU CÓDIGO ORIGINAL (para o ano) ---
         document.getElementById('currentYear').textContent = new Date().getFullYear();
-    </script>
+
+        // --- 2. O NOSSO NOVO CÓDIGO (para o modal e a API) ---
+
+        // Referências aos elementos do modal
+        const btnAbrir = document.getElementById('btnAbrirModalDespesa');
+        const btnFechar = document.getElementById('btnFecharModal');
+        const modal = document.getElementById('modalDespesa');
+        const formDespesa = document.getElementById('formDespesa');
+        const selectCategorias = document.getElementById('despesaCategoria');
+        const selectContas = document.getElementById('despesaConta');
+
+        // Lógica para abrir e fechar o modal
+        btnAbrir.addEventListener('click', () => {
+            modal.classList.remove('modal-oculto'); // Mostra o modal
+            // Carrega os dados frescos da API sempre que o modal é aberto
+            carregarCategorias();
+            carregarContas();
+            // Define a data de hoje por defeito
+            document.getElementById('despesaData').value = new Date().toISOString().split('T')[0];
+        });
+        btnFechar.addEventListener('click', () => {
+            modal.classList.add('modal-oculto'); // Esconde o modal
+        });
+
+        // --- FUNÇÕES DE API (GET) ---
+
+        // Função para carregar as Categorias de DESPESA
+        async function carregarCategorias() {
+            try {
+                // Chamamos a API GET que testámos (filtrando por DESPESA)
+                const response = await fetch('http://localhost:3002/api/financeiro/categorias?tipo=DESPESA');
+                const categorias = await response.json();
+                
+                selectCategorias.innerHTML = '<option value="">Selecione...</option>'; 
+                categorias.forEach(cat => {
+                    const option = document.createElement('option');
+                    option.value = cat.id;
+                    option.textContent = cat.Nome;
+                    selectCategorias.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Erro ao carregar categorias:', err);
+                selectCategorias.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        }
+
+        // Função para carregar as Contas/Caixa
+        async function carregarContas() {
+            try {
+                // Chamamos a API GET que testámos
+                const response = await fetch('http://localhost:3002/api/financeiro/contascaixa');
+                const contas = await response.json();
+                
+                selectContas.innerHTML = '<option value="">Selecione...</option>';
+                contas.forEach(conta => {
+                    const option = document.createElement('option');
+                    option.value = conta.id;
+                    option.textContent = conta.Nome;
+                    selectContas.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Erro ao carregar contas:', err);
+                selectContas.innerHTML = '<option value="">Erro ao carregar</option>';
+            }
+        }
+
+        // --- FUNÇÃO DE API (POST) ---
+
+        // Evento de Enviar o Formulário
+        formDespesa.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Impede o recarregamento da página
+
+            // Monta o objeto JSON que a nossa API espera
+            const dadosDespesa = {
+                Descricao: document.getElementById('despesaDescricao').value,
+                Valor: parseFloat(document.getElementById('despesaValor').value),
+                Tipo: 'DESPESA', // Fixo, pois é o formulário de despesa
+                DataPagamento: document.getElementById('despesaData').value,
+                CategoriaID: parseInt(document.getElementById('despesaCategoria').value),
+                ContaCaixaID: parseInt(document.getElementById('despesaConta').value)
+            };
+
+            try {
+                // Chama a nossa API POST!
+                const response = await fetch('http://localhost:3002/api/financeiro/lancamento', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dadosDespesa) // Converte o objeto JS em texto JSON
+                });
+
+                if (response.status === 201) {
+                    alert('Despesa lançada com sucesso!');
+                    formDespesa.reset(); // Limpa o formulário
+                    modal.classList.add('modal-oculto'); // Fecha o modal
+                    // No futuro, aqui chamaremos a função para atualizar a tabela do dashboard
+                } else {
+                    const erro = await response.json();
+                    alert(`Erro ao salvar: ${erro.message}`);
+                }
+            } catch (err) {
+                console.error('Erro de rede ao salvar despesa:', err);
+                alert('Erro de conexão. Verifique o console.');
+            }
+        });
+    });
+</script>
+    <button id="btnAbrirModalDespesa">[ - Lançar Despesa ]</button>
+
+<div id="modalDespesa" class="modal-overlay modal-oculto">
+    
+    <div class="modal-content">
+        <h3>Lançar Nova Despesa</h3>
+        
+        <form id="formDespesa">
+            <label>Descrição:</label>
+            <input type="text" id="despesaDescricao" required>
+
+            <label>Valor (R$):</label>
+            <input type="number" id="despesaValor" step="0.01" required>
+
+            <label>Data Pagamento:</label>
+            <input type="date" id="despesaData" required>
+
+            <label>Categoria:</label>
+            <select id="despesaCategoria" required>
+                <option value="">A carregar categorias...</option>
+            </select>
+
+            <label>Pagar com (Caixa/Conta):</label>
+            <select id="despesaConta" required>
+                <option value="">A carregar contas...</option>
+            </select>
+
+            <button type="submit">Salvar Lançamento</button>
+            <button type="button" id="btnFecharModal">Cancelar</button>
+        </form>
+    </div>
+</div>
 
 </body>
 </html>

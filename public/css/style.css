@@ -146,3 +146,86 @@ body {
     background-color: #d1d5db; /* Um cinzento claro, pode ajustar a cor */
     cursor: pointer;
 }
+/* --- CSS PARA O MODAL FINANCEIRO --- */
+
+/* O fundo escuro que cobre a tela toda */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99;
+}
+
+/* O popup/modal em si */
+.modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 100;
+    width: 90%;
+    max-width: 500px;
+}
+
+/* A classe que esconde o modal */
+.modal-oculto {
+    display: none;
+}
+
+
+/* --- Estilização do formulário (para ficar bonito) --- */
+#modalDespesa h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+}
+
+#formDespesa {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+#formDespesa label {
+    font-weight: 500;
+    margin-bottom: -0.5rem;
+}
+
+#formDespesa input,
+#formDespesa select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #D1D5DB; /* cinza-300 */
+    border-radius: 6px;
+}
+
+#formDespesa button[type="submit"] {
+    background-color: #2563EB; /* azul-600 */
+    color: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+#formDespesa button[type="submit"]:hover {
+    background-color: #1D4ED8; /* azul-700 */
+}
+
+#formDespesa button[type="button"] {
+    background-color: #E5E7EB; /* cinza-200 */
+    color: #374151; /* cinza-700 */
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+}
+#formDespesa button[type="button"]:hover {
+    background-color: #D1D5DB; /* cinza-300 */
+}
