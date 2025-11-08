@@ -1,6 +1,11 @@
+// backend/routes/rotasFinanceiro.js
+const express = require('express'); // <<< ADICIONEI
+const router = express.Router(); // <<< ADICIONEI
+const { db } = require('../database/database'); // <<< ADICIONEI (Ajuste o caminho se necessário)
+
 // --- No seu arquivo de rotas (ex: rotasFinanceiro.js) ---
 
-// Define a rota GET para /api/financeiro/categorias
+// Define a rota GET para /categorias (o prefixo /api/financeiro virá do server.js)
 router.get('/categorias', async (req, res) => {
     
     // Pega o filtro "tipo" da URL (query string)
@@ -35,14 +40,11 @@ router.get('/categorias', async (req, res) => {
     }
 });
 
-// Define a rota GET para /api/financeiro/contascaixa
+// Define a rota GET para /contascaixa
 router.get('/contascaixa', async (req, res) => {
     
     try {
         // 1. Monta a consulta SQL
-        // Além do nome, é útil incluir o saldo atual
-        // (Isso é um pouco mais complexo, pode precisar de um JOIN ou subquery,
-        // mas por agora vamos pegar o saldo inicial que definimos no modelo)
         const sqlQuery = "SELECT id, Nome, SaldoInicial FROM ContasCaixa";
 
         // 2. Executa a consulta
@@ -58,11 +60,10 @@ router.get('/contascaixa', async (req, res) => {
     }
 });
 
-// Define a rota POST para /api/financeiro/lancamento
+// Define a rota POST para /lancamento
 router.post('/lancamento', async (req, res) => {
     
     // 1. Pega os dados do corpo (body) da requisição
-    // (O frontend enviou isso do formulário)
     const { 
         Descricao, 
         Valor, 
@@ -86,8 +87,6 @@ router.post('/lancamento', async (req, res) => {
         `;
 
         // 4. Define os parâmetros
-        // Nota: Como é um lançamento manual JÁ PAGO,
-        // o Status é 'PAGO' e DataVencimento = DataPagamento.
         const params = [
             Descricao,
             Valor,
@@ -100,7 +99,6 @@ router.post('/lancamento', async (req, res) => {
         ];
 
         // 5. Executa a inserção no banco
-        // 'result.insertId' é comum para pegar o ID do novo item
         const [result] = await db.query(sqlInsert, params);
         
         const novoLancamentoId = result.insertId;
@@ -120,68 +118,50 @@ router.post('/lancamento', async (req, res) => {
     }
 });
 
-// Define a rota GET para /api/financeiro/dashboard/resumo
+// Define a rota GET para /dashboard/resumo
 router.get('/dashboard/resumo', async (req, res) => {
     
-    // --- 1. Preparar Datas ---
-    // Precisamos das datas de hoje, início do mês e fim do mês
     const hoje = new Date(); // Data de hoje
     const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
     const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0);
 
-    // Formatar para o SQL (ex: '2025-11-08')
     const hojeSQL = hoje.toISOString().split('T')[0];
     const inicioMesSQL = inicioMes.toISOString().split('T')[0];
     const fimMesSQL = fimMes.toISOString().split('T')[0];
 
     try {
-        // --- 2. Definir as Consultas SQL ---
-        // (Usamos COALESCE(SUM(Valor), 0) para garantir que retorne 0 em vez de NULL se não houver lançamentos)
-
-        // Saldo Atual: (Total Receitas PAGAS) - (Total Despesas PAGAS) de *todo o histórico*
         const querySaldoAtual = `
             SELECT 
                 (SELECT COALESCE(SUM(Valor), 0) FROM Lancamentos WHERE Tipo = 'RECEITA' AND Status = 'PAGO') - 
                 (SELECT COALESCE(SUM(Valor), 0) FROM Lancamentos WHERE Tipo = 'DESPESA' AND Status = 'PAGO') 
             AS SaldoAtualTotal
         `;
-
-        // Entradas do Mês: Total de Receitas PAGAS este mês
         const queryEntradasMes = `
             SELECT COALESCE(SUM(Valor), 0) AS EntradasMes 
             FROM Lancamentos 
             WHERE Tipo = 'RECEITA' AND Status = 'PAGO' 
             AND DataPagamento BETWEEN ? AND ?
-        `; // params: [inicioMesSQL, fimMesSQL]
-
-        // Saídas do Mês: Total de Despesas PAGAS este mês
+        `; 
         const querySaidasMes = `
             SELECT COALESCE(SUM(Valor), 0) AS SaidasMes 
             FROM Lancamentos 
             WHERE Tipo = 'DESPESA' AND Status = 'PAGO' 
             AND DataPagamento BETWEEN ? AND ?
-        `; // params: [inicioMesSQL, fimMesSQL]
-
-        // Contas a Receber VENCIDAS: Total PENDENTE com vencimento ANTES de hoje
+        `; 
         const queryReceberVencido = `
             SELECT COALESCE(SUM(Valor), 0) AS ContasReceberVencido 
             FROM Lancamentos 
             WHERE Tipo = 'RECEITA' AND Status = 'PENDENTE' 
             AND DataVencimento < ?
-        `; // params: [hojeSQL]
-
-        // Contas a Pagar HOJE: Total PENDENTE (Despesa) com vencimento HOJE
+        `; 
         const queryPagarHoje = `
             SELECT COALESCE(SUM(Valor), 0) AS ContasPagarHoje 
             FROM Lancamentos 
             WHERE Tipo = 'DESPESA' AND Status = 'PENDENTE' 
             AND DataVencimento = ?
-        `; // params: [hojeSQL]
-
-        // --- 3. Executar Consultas em Paralelo ---
-        // (Isso é muito mais eficiente do que fazer uma após a outra)
+        `; 
         const [
-            [saldoResult],    // Pega o primeiro registro do resultado
+            [saldoResult],    
             [entradasResult], 
             [saidasResult],   
             [vencidoResult],  
@@ -194,7 +174,6 @@ router.get('/dashboard/resumo', async (req, res) => {
             db.query(queryPagarHoje, [hojeSQL])
         ]);
 
-        // --- 4. Montar o Objeto de Resposta ---
         const resumo = {
             SaldoAtualTotal: saldoResult.SaldoAtualTotal,
             EntradasMes: entradasResult.EntradasMes,
@@ -202,8 +181,6 @@ router.get('/dashboard/resumo', async (req, res) => {
             ContasReceberVencido: vencidoResult.ContasReceberVencido,
             ContasPagarHoje: pagarHojeResult.ContasPagarHoje
         };
-
-        // 5. Retornar o JSON
         res.status(200).json(resumo);
 
     } catch (error) {
@@ -212,18 +189,13 @@ router.get('/dashboard/resumo', async (req, res) => {
     }
 });
 
-// Define a rota GET para /api/financeiro/movimentocaixa
+// Define a rota GET para /movimentocaixa
 router.get('/movimentocaixa', async (req, res) => {
     
-    // 1. Obter os filtros opcionais da query string (URL)
     const { data_inicio, data_fim, conta_id } = req.query;
 
     try {
-        // 2. Montar a consulta SQL dinâmica
         let params = [];
-        
-        // A consulta base seleciona apenas lançamentos PAGOS
-        // e junta o nome da Categoria e da Conta/Caixa
         let sqlQuery = `
             SELECT 
                 l.id,
@@ -239,27 +211,16 @@ router.get('/movimentocaixa', async (req, res) => {
             WHERE l.Status = 'PAGO'
         `;
 
-        // 3. Adicionar filtros dinamicamente
-        
-        // Filtro por Data
         if (data_inicio && data_fim) {
             sqlQuery += " AND l.DataPagamento BETWEEN ? AND ?";
             params.push(data_inicio, data_fim);
         }
-
-        // Filtro por Conta/Caixa
         if (conta_id) {
             sqlQuery += " AND l.ContaCaixaID = ?";
             params.push(conta_id);
         }
-
-        // 4. Adicionar ordenação (mais recentes primeiro)
         sqlQuery += " ORDER BY l.DataPagamento DESC";
-
-        // 5. Executar a consulta
         const [movimentos] = await db.query(sqlQuery, params);
-
-        // 6. Retornar a lista de movimentos
         res.status(200).json(movimentos);
 
     } catch (error) {
@@ -268,41 +229,30 @@ router.get('/movimentocaixa', async (req, res) => {
     }
 });
 
-// Define a rota GET para /api/financeiro/contasareceber/resumo
+// Define a rota GET para /contasareceber/resumo
 router.get('/contasareceber/resumo', async (req, res) => {
     
-    // 1. Preparar Data
     const hoje = new Date();
-    const hojeSQL = hoje.toISOString().split('T')[0]; // Formato 'AAAA-MM-DD'
+    const hojeSQL = hoje.toISOString().split('T')[0]; 
 
     try {
-        // --- 2. Definir as Consultas SQL ---
-        // (Sempre filtrando por Tipo = 'RECEITA' E Status = 'PENDENTE')
-
-        // Total a Receber: A soma de TUDO que está pendente
         const queryTotalAReceber = `
             SELECT COALESCE(SUM(Valor), 0) AS TotalAReceber
             FROM Lancamentos
             WHERE Tipo = 'RECEITA' AND Status = 'PENDENTE'
         `;
-
-        // Total Vencido: O que já passou da data de vencimento
         const queryTotalVencido = `
             SELECT COALESCE(SUM(Valor), 0) AS TotalVencido
             FROM Lancamentos
             WHERE Tipo = 'RECEITA' AND Status = 'PENDENTE'
               AND DataVencimento < ?
-        `; // params: [hojeSQL]
-
-        // A Receber Hoje: O que vence exatamente hoje
+        `; 
         const queryReceberHoje = `
             SELECT COALESCE(SUM(Valor), 0) AS ReceberHoje
             FROM Lancamentos
             WHERE Tipo = 'RECEITA' AND Status = 'PENDENTE'
               AND DataVencimento = ?
-        `; // params: [hojeSQL]
-
-        // --- 3. Executar Consultas em Paralelo ---
+        `; 
         const [
             [totalResult],
             [vencidoResult],
@@ -313,14 +263,11 @@ router.get('/contasareceber/resumo', async (req, res) => {
             db.query(queryReceberHoje, [hojeSQL])
         ]);
 
-        // --- 4. Montar o Objeto de Resposta ---
         const resumo = {
             TotalAReceber: totalResult.TotalAReceber,
             TotalVencido: vencidoResult.TotalVencido,
             ReceberHoje: hojeResult.ReceberHoje
         };
-
-        // 5. Retornar o JSON
         res.status(200).json(resumo);
 
     } catch (error) {
@@ -329,20 +276,14 @@ router.get('/contasareceber/resumo', async (req, res) => {
     }
 });
 
-// Define a rota GET para /api/financeiro/contasareceber
+// Define a rota GET para /contasareceber
 router.get('/contasareceber', async (req, res) => {
     
-    // 1. Obter os filtros opcionais da query string
     const { cliente_id, status, data_inicio, data_fim } = req.query;
-
-    // Data de hoje para o filtro 'status'
     const hojeSQL = new Date().toISOString().split('T')[0];
 
     try {
-        // 2. Montar a consulta SQL dinâmica
         let params = [];
-        
-        // Consulta base: seleciona receitas pendentes e junta o nome do cliente
         let sqlQuery = `
             SELECT 
                 l.id,
@@ -355,21 +296,15 @@ router.get('/contasareceber', async (req, res) => {
             LEFT JOIN Clientes c ON l.ClienteID = c.id
             WHERE l.Tipo = 'RECEITA' AND l.Status = 'PENDENTE'
         `;
-
-        // 3. Adicionar filtros dinamicamente
         
         if (cliente_id) {
             sqlQuery += " AND l.ClienteID = ?";
             params.push(cliente_id);
         }
-
-        // Filtro por Data de Vencimento
         if (data_inicio && data_fim) {
             sqlQuery += " AND l.DataVencimento BETWEEN ? AND ?";
             params.push(data_inicio, data_fim);
         }
-
-        // Filtro por Status (Vencido / A Vencer)
         if (status === 'vencido') {
             sqlQuery += " AND l.DataVencimento < ?";
             params.push(hojeSQL);
@@ -377,14 +312,8 @@ router.get('/contasareceber', async (req, res) => {
             sqlQuery += " AND l.DataVencimento >= ?";
             params.push(hojeSQL);
         }
-
-        // 4. Adicionar ordenação (vencimentos mais antigos primeiro)
         sqlQuery += " ORDER BY l.DataVencimento ASC";
-
-        // 5. Executar a consulta
         const [pendencias] = await db.query(sqlQuery, params);
-
-        // 6. Retornar a lista de pendências
         res.status(200).json(pendencias);
 
     } catch (error) {
@@ -393,28 +322,21 @@ router.get('/contasareceber', async (req, res) => {
     }
 });
 
-// Define a rota POST para /api/financeiro/lancamento/{id}/baixar
-// O {id} é o ID da DÍVIDA PENDENTE
+// Define a rota POST para /lancamento/{id}/baixar
 router.post('/lancamento/:id/baixar', async (req, res) => {
     
-    // Obter o ID da dívida pela URL
     const { id } = req.params; 
-    
-    // Obter os dados do pagamento (do modal)
     const { ValorRecebido, DataPagamento, ContaCaixaID } = req.body;
-
-    // Iniciar a conexão/transação (a sintaxe exata varia)
     const connection = await db.beginTransaction(); 
 
     try {
-        // --- 1. Buscar a Dívida Original ---
         const [dividaRows] = await connection.query(
             "SELECT * FROM Lancamentos WHERE id = ? AND Status = 'PENDENTE' AND Tipo = 'RECEITA' FOR UPDATE",
             [id]
-        ); // "FOR UPDATE" bloqueia a linha, essencial para transações
+        ); 
 
         if (dividaRows.length === 0) {
-            await connection.rollback(); // Desfaz a transação
+            await connection.rollback(); 
             return res.status(404).json({ message: "Dívida não encontrada ou já paga." });
         }
 
@@ -422,18 +344,13 @@ router.post('/lancamento/:id/baixar', async (req, res) => {
         const valorOriginal = parseFloat(dividaOriginal.Valor);
         const valorRecebidoFloat = parseFloat(ValorRecebido);
 
-        // --- 2. Validação ---
         if (valorRecebidoFloat > valorOriginal) {
             await connection.rollback();
             return res.status(400).json({ message: "O valor recebido não pode ser maior que o valor da dívida." });
         }
 
-        // --- 3. Lógica de Pagamento (Total ou Parcial) ---
-
         // Cenário 1: Pagamento TOTAL
         if (valorRecebidoFloat === valorOriginal) {
-            
-            // Apenas atualiza o lançamento original para PAGO
             const sqlUpdateTotal = `
                 UPDATE Lancamentos
                 SET Status = 'PAGO', DataPagamento = ?, ContaCaixaID = ?
@@ -444,8 +361,6 @@ router.post('/lancamento/:id/baixar', async (req, res) => {
         } 
         // Cenário 2: Pagamento PARCIAL (Amortização)
         else { 
-            
-            // Passo A: Atualizar a dívida original, subtraindo o valor
             const novoValorPendente = valorOriginal - valorRecebidoFloat;
             const sqlUpdateParcial = `
                 UPDATE Lancamentos
@@ -454,7 +369,6 @@ router.post('/lancamento/:id/baixar', async (req, res) => {
             `;
             await connection.query(sqlUpdateParcial, [novoValorPendente, id]);
 
-            // Passo B: Criar um NOVO lançamento (PAGO) com o valor recebido
             const sqlInsertPago = `
                 INSERT INTO Lancamentos
                 (Descricao, Valor, Tipo, Status, DataPagamento, DataVencimento, 
@@ -465,7 +379,7 @@ router.post('/lancamento/:id/baixar', async (req, res) => {
                 `Pagto parcial ref. Lançamento #${id}`,
                 valorRecebidoFloat,
                 DataPagamento,
-                DataPagamento, // DataVencimento = DataPagamento
+                DataPagamento, 
                 dividaOriginal.CategoriaID,
                 ContaCaixaID,
                 dividaOriginal.ClienteID,
@@ -473,22 +387,19 @@ router.post('/lancamento/:id/baixar', async (req, res) => {
             ]);
         }
 
-        // --- 4. Sucesso! ---
-        await connection.commit(); // Confirma todas as operações no banco
+        await connection.commit(); 
         res.status(200).json({ message: "Pagamento registrado com sucesso!" });
 
     } catch (error) {
-        // --- 5. Falha! ---
-        await connection.rollback(); // Desfaz tudo
+        await connection.rollback(); 
         console.error("Erro ao dar baixa em pagamento:", error);
         res.status(500).json({ message: "Erro interno ao processar pagamento." });
     }
 });
 
-// Define a rota GET para /api/financeiro/relatorios/dre
+// Define a rota GET para /relatorios/dre
 router.get('/relatorios/dre', async (req, res) => {
     
-    // 1. Obter os filtros de data
     const { data_inicio, data_fim } = req.query;
 
     if (!data_inicio || !data_fim) {
@@ -496,12 +407,6 @@ router.get('/relatorios/dre', async (req, res) => {
     }
 
     try {
-        // --- 2. A Consulta SQL ---
-        // Esta é a consulta principal:
-        // 1. Busca lançamentos PAGOS no período.
-        // 2. Agrupa por Categoria e Tipo (Receita/Despesa).
-        // 3. Soma o total de cada grupo.
-        
         const sqlQuery = `
             SELECT 
                 c.Nome AS CategoriaNome,
@@ -519,8 +424,6 @@ router.get('/relatorios/dre', async (req, res) => {
         `;
         
         const [grupos] = await db.query(sqlQuery, [data_inicio, data_fim]);
-
-        // --- 3. Processar os resultados (transformar a lista do SQL em um DRE) ---
         
         let TotalReceitas = 0;
         let TotalDespesas = 0;
@@ -541,13 +444,12 @@ router.get('/relatorios/dre', async (req, res) => {
 
         const LucroPrejuizo = TotalReceitas - TotalDespesas;
 
-        // --- 4. Montar o JSON de resposta ---
         const dre = {
             TotalReceitas: TotalReceitas,
             TotalDespesas: TotalDespesas,
             LucroPrejuizo: LucroPrejuizo,
-            Receitas: ReceitasDetalhadas, // A lista detalhada
-            Despesas: DespesasDetalhadas   // A lista detalhada
+            Receitas: ReceitasDetalhadas, 
+            Despesas: DespesasDetalhadas  
         };
 
         res.status(200).json(dre);
@@ -557,3 +459,6 @@ router.get('/relatorios/dre', async (req, res) => {
         res.status(500).json({ message: "Erro interno ao gerar relatório." });
     }
 });
+
+
+module.exports = router; // <<< ADICIONEI (A linha mais importante!)
