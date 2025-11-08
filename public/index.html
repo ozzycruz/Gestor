@@ -16,6 +16,63 @@
             <p class="mt-2 text-lg text-gray-600">Selecione um módulo para começar a trabalhar.</p>
         </header>
 
+        <section id="dashboard-resumo" class="mb-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="dashboard-card bg-blue-100 border-blue-300">
+                <h4 class="text-blue-800">Saldo Atual Total</h4>
+                <p id="card-saldo" class="dashboard-valor text-blue-900">R$ 0,00</p>
+            </div>
+            <div class="dashboard-card bg-green-100 border-green-300">
+                <h4 class="text-green-800">Entradas do Mês</h4>
+                <p id="card-entradas" class="dashboard-valor text-green-900">R$ 0,00</p>
+            </div>
+            <div class="dashboard-card bg-red-100 border-red-300">
+                <h4 class="text-red-800">Saídas do Mês</h4>
+                <p id="card-saidas" class="dashboard-valor text-red-900">R$ 0,00</p>
+            </div>
+            <div class="dashboard-card bg-yellow-100 border-yellow-300">
+                <h4 class="text-yellow-800">A Receber (Vencido)</h4>
+                <p id="card-vencido" class="dashboard-valor text-yellow-900">R$ 0,00</p>
+            </div>
+        </section>
+
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </main>
+
+        <section id="dashboard-movimentos" class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Últimos Lançamentos</h2>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <table class="w-full" id="tabela-movimentos">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="text-left p-3">Data</th>
+                            <th class="text-left p-3">Descrição</th>
+                            <th class="text-left p-3">Categoria</th>
+                            <th class="text-right p-3">Valor (R$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-movimentos-corpo">
+                        <tr>
+                            <td colspan="4" class="text-center p-4 text-gray-500">A carregar movimentos...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+
+        <footer class="text-center mt-12 text-gray-500 text-sm">
+            </footer>
+    </div>
+
+    <div id="modalDespesa" class="modal-overlay modal-oculto">
+        </div>
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-bold text-gray-800">Sistema de Gestão de Oficina</h1>
+            <p class="mt-2 text-lg text-gray-600">Selecione um módulo para começar a trabalhar.</p>
+        </header>
+
         <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             
             <!-- Card: Ordens de Serviço -->
@@ -95,120 +152,7 @@
         </footer>
     </div>
 
-    <script>
-    // 'DOMContentLoaded' garante que o HTML foi carregado antes de tentarmos adicionar eventos
-    document.addEventListener('DOMContentLoaded', () => {
-
-        // --- 1. O SEU CÓDIGO ORIGINAL (para o ano) ---
-        document.getElementById('currentYear').textContent = new Date().getFullYear();
-
-        // --- 2. O NOSSO NOVO CÓDIGO (para o modal e a API) ---
-
-        // Referências aos elementos do modal
-        const btnAbrir = document.getElementById('btnAbrirModalDespesa');
-        const btnFechar = document.getElementById('btnFecharModal');
-        const modal = document.getElementById('modalDespesa');
-        const formDespesa = document.getElementById('formDespesa');
-        const selectCategorias = document.getElementById('despesaCategoria');
-        const selectContas = document.getElementById('despesaConta');
-
-        // Lógica para abrir e fechar o modal
-        btnAbrir.addEventListener('click', () => {
-            modal.classList.remove('modal-oculto'); // Mostra o modal
-            // Carrega os dados frescos da API sempre que o modal é aberto
-            carregarCategorias();
-            carregarContas();
-            // Define a data de hoje por defeito
-            document.getElementById('despesaData').value = new Date().toISOString().split('T')[0];
-        });
-        btnFechar.addEventListener('click', () => {
-            modal.classList.add('modal-oculto'); // Esconde o modal
-        });
-
-        // --- FUNÇÕES DE API (GET) ---
-
-        // Função para carregar as Categorias de DESPESA
-        async function carregarCategorias() {
-            try {
-                // Chamamos a API GET que testámos (filtrando por DESPESA)
-                const response = await fetch('http://localhost:3002/api/financeiro/categorias?tipo=DESPESA');
-                const categorias = await response.json();
-                
-                selectCategorias.innerHTML = '<option value="">Selecione...</option>'; 
-                categorias.forEach(cat => {
-                    const option = document.createElement('option');
-                    option.value = cat.id;
-                    option.textContent = cat.Nome;
-                    selectCategorias.appendChild(option);
-                });
-            } catch (err) {
-                console.error('Erro ao carregar categorias:', err);
-                selectCategorias.innerHTML = '<option value="">Erro ao carregar</option>';
-            }
-        }
-
-        // Função para carregar as Contas/Caixa
-        async function carregarContas() {
-            try {
-                // Chamamos a API GET que testámos
-                const response = await fetch('http://localhost:3002/api/financeiro/contascaixa');
-                const contas = await response.json();
-                
-                selectContas.innerHTML = '<option value="">Selecione...</option>';
-                contas.forEach(conta => {
-                    const option = document.createElement('option');
-                    option.value = conta.id;
-                    option.textContent = conta.Nome;
-                    selectContas.appendChild(option);
-                });
-            } catch (err) {
-                console.error('Erro ao carregar contas:', err);
-                selectContas.innerHTML = '<option value="">Erro ao carregar</option>';
-            }
-        }
-
-        // --- FUNÇÃO DE API (POST) ---
-
-        // Evento de Enviar o Formulário
-        formDespesa.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Impede o recarregamento da página
-
-            // Monta o objeto JSON que a nossa API espera
-            const dadosDespesa = {
-                Descricao: document.getElementById('despesaDescricao').value,
-                Valor: parseFloat(document.getElementById('despesaValor').value),
-                Tipo: 'DESPESA', // Fixo, pois é o formulário de despesa
-                DataPagamento: document.getElementById('despesaData').value,
-                CategoriaID: parseInt(document.getElementById('despesaCategoria').value),
-                ContaCaixaID: parseInt(document.getElementById('despesaConta').value)
-            };
-
-            try {
-                // Chama a nossa API POST!
-                const response = await fetch('http://localhost:3002/api/financeiro/lancamento', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(dadosDespesa) // Converte o objeto JS em texto JSON
-                });
-
-                if (response.status === 201) {
-                    alert('Despesa lançada com sucesso!');
-                    formDespesa.reset(); // Limpa o formulário
-                    modal.classList.add('modal-oculto'); // Fecha o modal
-                    // No futuro, aqui chamaremos a função para atualizar a tabela do dashboard
-                } else {
-                    const erro = await response.json();
-                    alert(`Erro ao salvar: ${erro.message}`);
-                }
-            } catch (err) {
-                console.error('Erro de rede ao salvar despesa:', err);
-                alert('Erro de conexão. Verifique o console.');
-            }
-        });
-    });
-</script>
+<script src="js/index.js" defer></script>
 
 <div id="modalDespesa" class="modal-overlay modal-oculto">
     

@@ -229,3 +229,45 @@ body {
 #formDespesa button[type="button"]:hover {
     background-color: #D1D5DB; /* cinza-300 */
 }
+
+/* ... (todo o seu CSS existente, incluindo o do modal) ... */
+
+/* --- NOVO: CSS DOS CARDS DO DASHBOARD --- */
+.dashboard-card {
+    border-width: 1px;
+    border-style: solid;
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 3px 0 rgba(0,0,0,0.1), 0 1px 2px 0 rgba(0,0,0,0.06);
+}
+.dashboard-card h4 {
+    font-size: 0.875rem; /* 14px */
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+.dashboard-valor {
+    font-size: 1.875rem; /* 30px */
+    font-weight: 700;
+}
+
+/* --- NOVO: CSS DA TABELA DE MOVIMENTOS --- */
+#tabela-movimentos thead th {
+    font-size: 0.875rem;
+    color: #6B7280; /* cinza-500 */
+    font-weight: 600;
+}
+#tabela-movimentos tbody tr:nth-child(even) {
+    background-color: #F9FAFB; /* cinza-50 */
+}
+#tabela-movimentos tbody td {
+    padding: 0.75rem 0.75rem;
+    vertical-align: top;
+}
+.valor-despesa {
+    color: #DC2626; /* red-600 */
+    font-weight: 500;
+}
+.valor-receita {
+    color: #16A34A; /* green-600 */
+    font-weight: 500;
+}
