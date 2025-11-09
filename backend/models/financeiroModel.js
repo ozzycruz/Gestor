@@ -162,9 +162,13 @@ const findLancamentoPendenteById = (id) => {
     return dbGet("SELECT * FROM Lancamentos WHERE id = ? AND Status = 'PENDENTE' AND Tipo = 'RECEITA'", [id]);
 };
 
-const updateLancamentoParaPago = (id, DataPagamento, ContaCaixaID) => {
-    const sql = `UPDATE Lancamentos SET Status = 'PAGO', DataPagamento = ?, ContaCaixaID = ? WHERE id = ?`;
-    return dbRun(sql, [DataPagamento, ContaCaixaID, id]);
+const updateLancamentoParaPago = (id, DataPagamento, ContaCaixaID, FormaPagamentoID) => {
+    const sql = `
+        UPDATE Lancamentos 
+        SET Status = 'PAGO', DataPagamento = ?, ContaCaixaID = ?, FormaPagamentoID = ? 
+        WHERE id = ?
+    `;
+    return dbRun(sql, [DataPagamento, ContaCaixaID, FormaPagamentoID, id]);
 };
 
 const updateLancamentoValorPendente = (id, novoValor) => {

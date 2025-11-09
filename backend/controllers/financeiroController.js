@@ -147,7 +147,8 @@ const listarContasAReceber = async (req, res) => {
 
 const baixarLancamento = async (req, res) => {
     const { id } = req.params;
-    const { ValorRecebido, DataPagamento, ContaCaixaID } = req.body;
+    // --- ALTERAÇÃO 1: Ler o FormaPagamentoID ---
+    const { ValorRecebido, DataPagamento, ContaCaixaID, FormaPagamentoID } = req.body;
 
     try {
         // 1. Inicia a Transação
@@ -162,6 +163,16 @@ const baixarLancamento = async (req, res) => {
         const valorOriginal = parseFloat(dividaOriginal.Valor);
         const valorRecebidoFloat = parseFloat(ValorRecebido);
 
+        // --- ALTERAÇÃO 2: Novas Validações ---
+        if (!FormaPagamentoID) {
+            await dbRun('ROLLBACK');
+            return res.status(400).json({ message: "A Forma de Pagamento é obrigatória." });
+        }
+        if (!ContaCaixaID) {
+            // Esta validação já existia no frontend, mas é bom tê-la no backend
+            await dbRun('ROLLBACK');
+            return res.status(400).json({ message: "A Conta/Caixa de destino é obrigatória." });
+        }
         if (valorRecebidoFloat > valorOriginal) {
             await dbRun('ROLLBACK');
             return res.status(400).json({ message: "O valor recebido não pode ser maior que o valor da dívida." });
@@ -169,11 +180,15 @@ const baixarLancamento = async (req, res) => {
 
         // Cenário 1: Pagamento TOTAL
         if (valorRecebidoFloat === valorOriginal) {
-            await FinanceiroModel.updateLancamentoParaPago(id, DataPagamento, ContaCaixaID);
+            
+            // --- ALTERAÇÃO 3: Passar o FormaPagamentoID ---
+            await FinanceiroModel.updateLancamentoParaPago(id, DataPagamento, ContaCaixaID, FormaPagamentoID);
+        
         } 
         // Cenário 2: Pagamento PARCIAL (Amortização)
         else {
-            // A. Atualiza a dívida original
+            
+            // A. Atualiza a dívida original (sem alterações)
             const novoValorPendente = valorOriginal - valorRecebidoFloat;
             await FinanceiroModel.updateLancamentoValorPendente(id, novoValorPendente);
             
@@ -188,7 +203,8 @@ const baixarLancamento = async (req, res) => {
                 CategoriaID: dividaOriginal.CategoriaID,
                 ContaCaixaID: ContaCaixaID,
                 ClienteID: dividaOriginal.ClienteID,
-                VendaID: dividaOriginal.VendaID
+                VendaID: dividaOriginal.VendaID,
+                FormaPagamentoID: FormaPagamentoID // --- ALTERAÇÃO 4: Adicionar o FormaPagamentoID ---
             };
             await FinanceiroModel.createLancamento(lancamentoPago);
         }
