@@ -190,7 +190,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const dadosBaixa = {
             ValorRecebido: parseFloat(baixaValorRecebido.value),
             DataPagamento: baixaDataPagamento.value,
-            ContaCaixaID: parseInt(baixaContaCaixa.value)
+            ContaCaixaID: parseInt(baixaContaCaixa.value),
             FormaPagamentoID: parseInt(baixaFormaPagamento.value)
         };
 
