@@ -5,6 +5,7 @@ const financeiroController = require('../controllers/financeiroController');
 const { db } = require('../database/database'); // Importamos o db, embora o controller o use mais
 
 // --- Rotas de Apoio (Listas) ---
+router.get('/formaspagamento', financeiroController.listarFormasPagamento);
 router.get('/categorias', financeiroController.listarCategorias);
 router.get('/contascaixa', financeiroController.listarContasCaixa);
 

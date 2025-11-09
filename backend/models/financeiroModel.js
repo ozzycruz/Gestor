@@ -1,6 +1,11 @@
 // backend/models/financeiroModel.js
 const { dbAll, dbGet, dbRun } = require('../database/database');
 
+// --- NOVO: FUNÇÃO PARA BUSCAR FORMAS DE PAGAMENTO ---
+const getFormasPagamento = () => {
+    return dbAll('SELECT * FROM FormasPagamento ORDER BY id');
+};
+
 // --- Funções GET Simples (Listas) ---
 
 const getCategorias = (tipo) => {
@@ -182,6 +187,7 @@ const getDRE = (data_inicio, data_fim) => {
 };
 
 module.exports = {
+    getFormasPagamento,
     getCategorias,
     getContasCaixa,
     getSaldoAtual,

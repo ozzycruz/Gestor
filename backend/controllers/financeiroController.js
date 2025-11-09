@@ -2,6 +2,17 @@
 const FinanceiroModel = require('../models/financeiroModel');
 const { dbRun } = require('../database/database'); // Importamos dbRun para transações
 
+// --- NOVO: CONTROLLER PARA FORMAS DE PAGAMENTO ---
+const listarFormasPagamento = async (req, res) => {
+    try {
+        const formas = await FinanceiroModel.getFormasPagamento();
+        res.status(200).json(formas);
+    } catch (error) {
+        console.error("Erro ao buscar formas de pagamento:", error);
+        res.status(500).json({ message: "Erro interno ao buscar formas de pagamento." });
+    }
+};
+
 // --- Controladores de Listas ---
 
 const listarCategorias = async (req, res) => {
@@ -233,6 +244,7 @@ const getRelatorioDRE = async (req, res) => {
 };
 
 module.exports = {
+    listarFormasPagamento,
     listarCategorias,
     listarContasCaixa,
     getDashboardResumo,
