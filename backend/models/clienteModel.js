@@ -18,18 +18,25 @@ const searchByName = (termo) => {
 };
 
 const findAll = () => {
-    // Esta nova consulta SQL usa uma sub-consulta (subquery) para
-    // verificar se existe ALGUM lançamento VENCIDO para este cliente.
+    // Esta consulta SQL usa a lógica CASE para devolver
+    // 'vermelho', 'laranja' ou 'verde' com base na sua sugestão.
     const sql = `
         SELECT 
             c.*, 
-            (EXISTS (
-                SELECT 1 
-                FROM Lancamentos l 
-                WHERE l.ClienteID = c.id 
-                  AND l.Status = 'PENDENTE' 
-                  AND l.DataVencimento < DATE('now')
-            )) AS temDebitoVencido
+            CASE
+                WHEN EXISTS (
+                    SELECT 1 FROM Lancamentos l
+                    WHERE l.ClienteID = c.id AND l.Status = 'PENDENTE' AND l.DataVencimento < DATE('now')
+                ) THEN 'vermelho' -- 1. Tem dívida vencida
+                
+                WHEN EXISTS (
+                    SELECT 1 FROM Lancamentos l
+                    WHERE l.ClienteID = c.id AND l.Status = 'PENDENTE'
+                ) THEN 'laranja' -- 2. Tem dívida (não vencida)
+                
+                ELSE 'verde' -- 3. Não tem dívidas
+                
+            END AS statusFinanceiro
         FROM Clientes c
     `;
     return dbAll(sql);
