@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contas a Receber - Gestão de Oficina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-10">
+            <a href="index.html" class="text-blue-600 hover:text-blue-800">&larr; Voltar para o Início</a>
+            <h1 class="text-4xl font-bold text-gray-800 mt-2">Contas a Receber (Fiado)</h1>
+        </header>
+
+        <section id="contas-resumo" class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="dashboard-card bg-blue-100 border-blue-300">
+                <h4 class="text-blue-800">Total a Receber (Pendente)</h4>
+                <p id="card-total-receber" class="dashboard-valor text-blue-900">R$ 0,00</p>
+            </div>
+            <div class="dashboard-card bg-red-100 border-red-300">
+                <h4 class="text-red-800">Total Vencido (Atrasado)</h4>
+                <p id="card-total-vencido" class="dashboard-valor text-red-900">R$ 0,00</p>
+            </div>
+            <div class="dashboard-card bg-yellow-100 border-yellow-300">
+                <h4 class="text-yellow-800">A Receber Hoje</h4>
+                <p id="card-receber-hoje" class="dashboard-valor text-yellow-900">R$ 0,00</p>
+            </div>
+        </section>
+
+        <section id="contas-lista" class="mt-12">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Lançamentos Pendentes</h2>
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <table class="w-full" id="tabela-pendencias">
+                    <thead>
+                        <tr class="border-b">
+                            <th class="text-left p-3">Cliente</th>
+                            <th class="text-left p-3">Descrição (Venda #)</th>
+                            <th class="text-left p-3">Vencimento</th>
+                            <th class="text-right p-3">Valor Pendente (R$)</th>
+                            <th class="text-center p-3">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabela-pendencias-corpo">
+                        <tr>
+                            <td colspan="5" class="text-center p-4 text-gray-500">A carregar pendências...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </div>
+
+    <div id="modalBaixa" class="modal-overlay modal-oculto">
+        <div class="modal-content">
+            <h3 id="modalBaixaTitulo">Receber Pagamento</h3>
+            
+            <form id="formBaixa">
+                <input type="hidden" id="baixaLancamentoId">
+
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600">Dívida Original:</p>
+                    <p id="baixaValorOriginal" class="text-2xl font-bold">R$ 100,00</p>
+                </div>
+
+                <label>Valor Recebido (R$):</label>
+                <input type_="number" id="baixaValorRecebido" step="0.01" class="form-input w-full" required>
+                
+                <label class="mt-4">Data do Recebimento:</label>
+                <input type="date" id="baixaDataPagamento" class="form-input w-full" required>
+
+                <label class="mt-4">Receber em (Conta/Caixa):</label>
+                <select id="baixaContaCaixa" class="form-input w-full" required>
+                    <option value="">A carregar contas...</option>
+                </select>
+
+                <div class="mt-6">
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg">Confirmar Recebimento</button>
+                    <button type="button" id="btnFecharModalBaixa" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg mt-2">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/gestao_contas_receber.js" defer></script>
+</body>
+</html>
