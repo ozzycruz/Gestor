@@ -3,16 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão de Clientes e Veículos</title>
+    <title>Gestão de Clientes</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        /* Estilo para o cabeçalho ordenável */
+        th[data-sort] {
+            cursor: pointer;
+            user-select: none;
+        }
+        th[data-sort]:hover {
+            background-color: #e5e7eb; /* cinza-200 */
+        }
+    </style>
 </head>
 <body class="p-4 md:p-8">
 
     <div class="max-w-7xl mx-auto">
         <a href="index.html" class="text-blue-600 hover:underline">&larr; Voltar à Página Inicial</a>
-        <div id="feedback-alert" class="feedback-alert"></div>
+        <div id="feedback-alert" class="feedback-alert" style="display: none;"></div>
+        
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Gestão de Clientes</h1>
             <button id="btnNovoCliente" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow">
@@ -21,27 +32,33 @@
         </div>
 
         <div class="mb-4">
-        <input type="text" id="input-busca-cliente" placeholder="🔎 Pesquisar por nome..." class="form-input w-full md:w-1/3">
+            <input type="text" id="input-busca-cliente" placeholder="🔎 Pesquisar por nome ou telefone..." class="form-input w-full md:w-1/3">
         </div>
 
-        <!-- Tabela de Clientes -->
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-gray-100">
+                    <thead class="bg-gray-100" id="tabela-clientes-header">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Nome</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Contato</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">Ações</th>
+                            <th data-sort="nome" class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                Nome <span class="sort-arrow"></span>
+                            </th>
+                            <th data-sort="telefone" class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                Contato <span class="sort-arrow"></span>
+                            </th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-600 uppercase tracking-wider">
+                                Ações
+                            </th>
                         </tr>
                     </thead>
-                    <tbody id="tabela-clientes" class="divide-y divide-gray-200"></tbody>
+                    <tbody id="tabela-clientes-corpo" class="divide-y divide-gray-200">
+                        <tr><td colspan="3" class="text-center p-4 text-gray-500">A carregar clientes...</td></tr>
+                    </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- Modal para Adicionar/Editar Cliente -->
     <div id="cliente-modal" class="modal-backdrop">
         <div class="modal-content max-w-md">
             <h2 id="cliente-modal-title" class="text-2xl font-bold text-gray-800 mb-4">Novo Cliente</h2>
@@ -58,27 +75,6 @@
         </div>
     </div>
 
-    <!-- Modal para Gerir Veículos -->
-    <div id="veiculo-modal" class="modal-backdrop">
-        <div class="modal-content">
-            <h2 id="veiculo-modal-title" class="text-2xl font-bold text-gray-800 mb-4">Veículos do Cliente</h2>
-            <div id="veiculos-lista" class="mb-6 max-h-60 overflow-y-auto"></div>
-            <hr class="my-4">
-            <h3 class="text-lg font-semibold text-gray-700 mb-2">Adicionar Novo Veículo</h3>
-            <form id="veiculo-form" class="grid grid-cols-2 gap-4">
-                <input type="hidden" id="veiculo-cliente-id">
-                <div class="col-span-2 sm:col-span-1"><label for="veiculo-placa">Placa</label><input type="text" id="veiculo-placa" required class="form-input mt-1 w-full rounded-md shadow-sm"></div>
-                <div class="col-span-2 sm:col-span-1"><label for="veiculo-marca">Marca</label><input type="text" id="veiculo-marca" class="form-input mt-1 w-full rounded-md shadow-sm"></div>
-                <div class="col-span-2 sm:col-span-1"><label for="veiculo-modelo">Modelo</label><input type="text" id="veiculo-modelo" class="form-input mt-1 w-full rounded-md shadow-sm"></div>
-                <div class="col-span-2 sm:col-span-1"><label for="veiculo-ano">Ano</label><input type="number" id="veiculo-ano" class="form-input mt-1 w-full rounded-md shadow-sm"></div>
-                <div class="col-span-2"><label for="veiculo-cor">Cor</label><input type="text" id="veiculo-cor" class="form-input mt-1 w-full rounded-md shadow-sm"></div>
-                <div class="col-span-2 text-right"><button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Adicionar Veículo</button></div>
-            </form>
-            <div class="text-center mt-6"><button type="button" id="btn-fechar-veiculo" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg">Fechar</button></div>
-        </div>
-    </div>
-
-<script src="js/gestao_clientes.js"></script>
-
+    <script src="js/gestao_clientes.js" defer></script>
 </body>
 </html>

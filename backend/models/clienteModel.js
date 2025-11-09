@@ -18,7 +18,21 @@ const searchByName = (termo) => {
 };
 
 const findAll = () => {
-    return dbAll('SELECT * FROM Clientes ORDER BY nome');
+    // Esta nova consulta SQL usa uma sub-consulta (subquery) para
+    // verificar se existe ALGUM lançamento VENCIDO para este cliente.
+    const sql = `
+        SELECT 
+            c.*, 
+            (EXISTS (
+                SELECT 1 
+                FROM Lancamentos l 
+                WHERE l.ClienteID = c.id 
+                  AND l.Status = 'PENDENTE' 
+                  AND l.DataVencimento < DATE('now')
+            )) AS temDebitoVencido
+        FROM Clientes c
+    `;
+    return dbAll(sql);
 };
 
 const create = (cliente) => {
