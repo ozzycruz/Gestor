@@ -1,18 +1,28 @@
-// public/js/gestao_vendas.js
+// public/js/gestao_vendas.js (Versão ATUALIZADA)
 
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURAÇÃO E VARIÁVEIS GLOBAIS ---
     const API_URL = 'http://localhost:3002/api';
+    
+    // --- NOVO: Listas para guardar dados das APIs financeiras ---
     let listaClientes = [], listaProdutos = [], listaServicos = [];
+    let listaFormasPagamento = [];
+    let listaContasCaixa = [];
+    
     let vendaAtual = {
-    cliente_id: null,
-    itens: [],
-    total: 0,
-    subtotal: 0, // Adicionado
-    desconto_tipo: 'R$', // Adicionado
-    desconto_valor: 0 // Adicionado
-};
+        cliente_id: null,
+        itens: [],
+        total: 0,
+        subtotal: 0,
+        desconto_tipo: 'R$',
+        desconto_valor: 0,
+        // --- NOVO: Campos financeiros ---
+        FormaPagamentoID: null,
+        ContaCaixaID: null,
+        DataVencimento: null
+    };
+
     let selectedItems = { cliente: null, produto: null, servico: null };
     let ultimaVendaSalva = null;
 
@@ -30,6 +40,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const btnImprimirRecibo = document.getElementById('btn-imprimir-recibo');
     const inputDescontoValor = document.getElementById('desconto-valor');
     const selectDescontoTipo = document.getElementById('desconto-tipo');
+
+    // --- NOVO: Referências aos novos campos financeiros ---
+    const selectFormaPagamento = document.getElementById('select-forma-pagamento');
+    const selectContaCaixa = document.getElementById('select-conta-caixa');
+    const inputDataVencimento = document.getElementById('input-data-vencimento');
+    const blocoContaCaixa = document.getElementById('bloco-conta-caixa');
+    const blocoDataVencimento = document.getElementById('bloco-data-vencimento');
 
     inputDescontoValor.addEventListener('input', () => {
         vendaAtual.desconto_valor = parseFloat(inputDescontoValor.value) || 0;
@@ -54,178 +71,204 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- FUNÇÕES PRINCIPAIS ---
 
-const setupAutocomplete = (inputId, resultsId, type) => {
-    const input = document.getElementById(inputId);
-    const results = document.getElementById(resultsId);
-    let activeIndex = -1;
+    const setupAutocomplete = (inputId, resultsId, type) => {
+        // ... (o seu código de setupAutocomplete não muda) ...
+        // (Copie e cole o seu código original de setupAutocomplete aqui)
+        const input = document.getElementById(inputId);
+        const results = document.getElementById(resultsId);
+        let activeIndex = -1;
 
-    const updateActiveItem = () => {
-        const items = results.querySelectorAll('.autocomplete-item');
-        items.forEach((item, index) => {
-            if (index === activeIndex) {
-                item.classList.add('active');
-                item.scrollIntoView({ block: 'nearest' });
-            } else {
-                item.classList.remove('active');
+        const updateActiveItem = () => {
+            const items = results.querySelectorAll('.autocomplete-item');
+            items.forEach((item, index) => {
+                if (index === activeIndex) {
+                    item.classList.add('active');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        };
+
+        input.addEventListener('input', async () => {
+            const query = input.value.toLowerCase();
+            results.innerHTML = '';
+            activeIndex = -1;
+            selectedItems[type] = null;
+            if (type === 'cliente') vendaAtual.cliente_id = null;
+            
+            if (!query || query.length < 2) {
+                results.classList.add('hidden');
+                return;
+            }
+
+            try {
+                let searchEndpoint = '';
+                if (type === 'produto') searchEndpoint = 'produtos';
+                else if (type === 'cliente') searchEndpoint = 'clientes';
+                else if (type === 'servico') searchEndpoint = 'servicos';
+
+                const response = await fetch(`${API_URL}/${searchEndpoint}/search?q=${query}`);
+                if (!response.ok) throw new Error('A resposta da rede não foi bem-sucedida.');
+                
+                const filteredItems = await response.json();
+
+                results.classList.remove('hidden');
+                if (filteredItems.length === 0) {
+                    results.innerHTML = '<div class="autocomplete-item-none">Nenhum resultado encontrado.</div>';
+                } else {
+                    filteredItems.forEach((item) => {
+                        const div = document.createElement('div');
+                        div.className = 'autocomplete-item';
+                        
+                        if (type === 'cliente') {
+                            div.textContent = item.nome;
+                        } else {
+                            const preco = item.preco_unitario || item.preco || 0;
+                            div.textContent = `${item.nome} (${formatCurrency(preco)})`;
+                        }
+                        
+                        div.addEventListener('click', () => {
+                            input.value = item.nome;
+                            selectedItems[type] = item.id;
+                            if (type === 'cliente') vendaAtual.cliente_id = item.id;
+                            results.classList.add('hidden');
+                        });
+                        results.appendChild(div);
+                    });
+                }
+            } catch (error) {
+                console.error(`Erro ao buscar ${type}:`, error);
+                results.innerHTML = `<div class="autocomplete-item-none">Erro na busca.</div>`;
+            }
+        });
+
+        input.addEventListener('keydown', (e) => {
+            const items = results.querySelectorAll('.autocomplete-item');
+            if (results.classList.contains('hidden') || items.length === 0) return;
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                activeIndex = (activeIndex + 1) % items.length;
+                updateActiveItem();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                activeIndex = (activeIndex - 1 + items.length) % items.length;
+                updateActiveItem();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (activeIndex > -1) {
+                    items[activeIndex].click();
+                    
+                    if (type === 'produto') {
+                        document.getElementById('input-produto-qtd').focus();
+                    } else if (type === 'servico') {
+                        document.getElementById('input-servico-qtd').focus();
+                    }
+                }
+            } else if (e.key === 'Escape') {
+                results.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-container')) {
+                results.classList.add('hidden');
             }
         });
     };
-
-    input.addEventListener('input', async () => {
-        const query = input.value.toLowerCase();
-        results.innerHTML = '';
-        activeIndex = -1;
-        selectedItems[type] = null;
-        if (type === 'cliente') vendaAtual.cliente_id = null;
-        
-        if (!query || query.length < 2) {
-            results.classList.add('hidden');
-            return;
-        }
-
-        try {
-            let searchEndpoint = '';
-            if (type === 'produto') searchEndpoint = 'produtos';
-            else if (type === 'cliente') searchEndpoint = 'clientes';
-            else if (type === 'servico') searchEndpoint = 'servicos';
-
-            const response = await fetch(`${API_URL}/${searchEndpoint}/search?q=${query}`);
-            if (!response.ok) throw new Error('A resposta da rede não foi bem-sucedida.');
-            
-            const filteredItems = await response.json();
-
-            results.classList.remove('hidden');
-            if (filteredItems.length === 0) {
-                results.innerHTML = '<div class="autocomplete-item-none">Nenhum resultado encontrado.</div>';
-            } else {
-                filteredItems.forEach((item) => {
-                    const div = document.createElement('div');
-                    div.className = 'autocomplete-item';
-                    
-                    // --- CORREÇÃO APLICADA AQUI ---
-                    if (type === 'cliente') {
-                        div.textContent = item.nome;
-                    } else {
-                        const preco = item.preco_unitario || item.preco || 0;
-                        div.textContent = `${item.nome} (${formatCurrency(preco)})`;
-                    }
-                    
-                    div.addEventListener('click', () => {
-                        input.value = item.nome;
-                        selectedItems[type] = item.id;
-                        if (type === 'cliente') vendaAtual.cliente_id = item.id;
-                        results.classList.add('hidden');
-                    });
-                    results.appendChild(div);
-                });
-            }
-        } catch (error) {
-            console.error(`Erro ao buscar ${type}:`, error);
-            results.innerHTML = `<div class="autocomplete-item-none">Erro na busca.</div>`;
-        }
-    });
-
-    // ... (o resto da função com a lógica do teclado continua igual) ...
-    input.addEventListener('keydown', (e) => {
-        const items = results.querySelectorAll('.autocomplete-item');
-        if (results.classList.contains('hidden') || items.length === 0) return;
-
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            activeIndex = (activeIndex + 1) % items.length;
-            updateActiveItem();
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            activeIndex = (activeIndex - 1 + items.length) % items.length;
-            updateActiveItem();
-        } else if (e.key === 'Enter') {
-            e.preventDefault();
-            if (activeIndex > -1) {
-                items[activeIndex].click();
-                
-                if (type === 'produto') {
-                    document.getElementById('input-produto-qtd').focus();
-                } else if (type === 'servico') {
-                    document.getElementById('input-servico-qtd').focus();
-                }
-            }
-        } else if (e.key === 'Escape') {
-            results.classList.add('hidden');
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.autocomplete-container')) {
-            results.classList.add('hidden');
-        }
-    });
-};
     
+    // --- ATUALIZADO: Carregar dados financeiros ---
     const popularDadosIniciais = async () => {
         try {
-            // Apenas carrega os clientes para a impressão, o resto é via busca
+            // A sua chamada original
             const clientesRes = await fetch(`${API_URL}/clientes`);
             listaClientes = await clientesRes.json();
+
+            // --- NOVO: Carregar Formas de Pagamento ---
+            const formasRes = await fetch(`${API_URL}/financeiro/formaspagamento`);
+            listaFormasPagamento = await formasRes.json();
+            selectFormaPagamento.innerHTML = '<option value="">Selecione a forma...</option>';
+            listaFormasPagamento.forEach(forma => {
+                const option = document.createElement('option');
+                option.value = forma.id;
+                option.textContent = forma.Nome;
+                option.dataset.tipo = forma.TipoLancamento; // Guarda o tipo (A_VISTA / A_PRAZO)
+                selectFormaPagamento.appendChild(option);
+            });
+
+            // --- NOVO: Carregar Contas/Caixa ---
+            const contasRes = await fetch(`${API_URL}/financeiro/contascaixa`);
+            listaContasCaixa = await contasRes.json();
+            selectContaCaixa.innerHTML = '<option value="">Selecione a conta...</option>';
+            listaContasCaixa.forEach(conta => {
+                const option = document.createElement('option');
+                option.value = conta.id;
+                option.textContent = conta.Nome;
+                selectContaCaixa.appendChild(option);
+            });
+
         } catch (error) {
-            console.error("Erro ao carregar clientes:", error);
+            console.error("Erro ao carregar dados iniciais:", error);
+            showAlert("Erro fatal ao carregar dados financeiros. Verifique o console.", false);
         }
     };
 
-const renderizarItensVenda = () => {
-    itensVendaContainer.innerHTML = '';
-    let subtotal = 0;
+    const renderizarItensVenda = () => {
+        // ... (o seu código de renderizarItensVenda não muda) ...
+        // (Copie e cole o seu código original de renderizarItensVenda aqui)
+        itensVendaContainer.innerHTML = '';
+        let subtotal = 0;
 
-    if (vendaAtual.itens.length === 0) {
-        carrinhoVazioMsg.style.display = 'block';
-    } else {
-        carrinhoVazioMsg.style.display = 'none';
-        vendaAtual.itens.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'flex justify-between items-center text-sm p-2 bg-gray-50 rounded';
-            itemDiv.innerHTML = `
-                <div class="flex-grow">
-                    <p class="font-semibold text-gray-800">${item.nome} <span class="text-xs text-gray-500">(${item.tipo})</span></p>
-                    <p class="text-gray-600">${item.quantidade} x ${formatCurrency(item.precoUnitario)}</p>
-                </div>
-                <p class="font-semibold w-24 text-right">${formatCurrency(item.subtotal)}</p>
-                <button type="button" data-action="remover-item" data-index="${index}" class="ml-3 text-red-500 hover:text-red-700 font-bold">X</button>`;
-            itensVendaContainer.appendChild(itemDiv);
-            subtotal += item.subtotal; // Calcula o subtotal aqui
-        });
-    }
+        if (vendaAtual.itens.length === 0) {
+            carrinhoVazioMsg.style.display = 'block';
+        } else {
+            carrinhoVazioMsg.style.display = 'none';
+            vendaAtual.itens.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-center text-sm p-2 bg-gray-50 rounded';
+                itemDiv.innerHTML = `
+                    <div class="flex-grow">
+                        <p class="font-semibold text-gray-800">${item.nome} <span class="text-xs text-gray-500">(${item.tipo})</span></p>
+                        <p class="text-gray-600">${item.quantidade} x ${formatCurrency(item.precoUnitario)}</p>
+                    </div>
+                    <p class="font-semibold w-24 text-right">${formatCurrency(item.subtotal)}</p>
+                    <button type="button" data-action="remover-item" data-index="${index}" class="ml-3 text-red-500 hover:text-red-700 font-bold">X</button>`;
+                itensVendaContainer.appendChild(itemDiv);
+                subtotal += item.subtotal; 
+            });
+        }
 
-    // Lógica de cálculo do desconto e total final
-    let valorDoDesconto = 0;
-    if (vendaAtual.desconto_tipo === '%') {
-        valorDoDesconto = subtotal * (vendaAtual.desconto_valor / 100);
-    } else {
-        valorDoDesconto = vendaAtual.desconto_valor;
-    }
-    
-    if (valorDoDesconto > subtotal) valorDoDesconto = subtotal;
+        let valorDoDesconto = 0;
+        if (vendaAtual.desconto_tipo === '%') {
+            valorDoDesconto = subtotal * (vendaAtual.desconto_valor / 100);
+        } else {
+            valorDoDesconto = vendaAtual.desconto_valor;
+        }
+        
+        if (valorDoDesconto > subtotal) valorDoDesconto = subtotal;
 
-    const totalFinal = subtotal - valorDoDesconto;
+        const totalFinal = subtotal - valorDoDesconto;
 
-    vendaAtual.subtotal = subtotal;
-    vendaAtual.total = totalFinal;
+        vendaAtual.subtotal = subtotal;
+        vendaAtual.total = totalFinal;
 
-    // Atualiza a interface
-    document.getElementById('subtotal-valor').textContent = formatCurrency(subtotal);
-    const descontoAplicadoContainer = document.getElementById('desconto-aplicado-container');
-    if (valorDoDesconto > 0) {
-        document.getElementById('desconto-aplicado-valor').textContent = `- ${formatCurrency(valorDoDesconto)}`;
-        descontoAplicadoContainer.classList.remove('hidden');
-    } else {
-        descontoAplicadoContainer.classList.add('hidden');
-    }
-    document.getElementById('total-valor').textContent = formatCurrency(totalFinal);
+        document.getElementById('subtotal-valor').textContent = formatCurrency(subtotal);
+        const descontoAplicadoContainer = document.getElementById('desconto-aplicado-container');
+        if (valorDoDesconto > 0) {
+            document.getElementById('desconto-aplicado-valor').textContent = `- ${formatCurrency(valorDoDesconto)}`;
+            descontoAplicadoContainer.classList.remove('hidden');
+        } else {
+            descontoAplicadoContainer.classList.add('hidden');
+        }
+        document.getElementById('total-valor').textContent = formatCurrency(totalFinal);
 
-    btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
-};
-    // AdicionarProduto e AdicionarServico agora precisam buscar o item da API
-    // para garantir que têm a informação mais atualizada, já que não temos mais a lista completa.
+        btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
+    };
     
     const adicionarProduto = async () => {
+        // ... (o seu código de adicionarProduto não muda) ...
+        // (Copie e cole o seu código original de adicionarProduto aqui)
         const produtoId = selectedItems.produto;
         const quantidade = parseInt(document.getElementById('input-produto-qtd').value);
 
@@ -264,6 +307,8 @@ const renderizarItensVenda = () => {
     };
 
     const adicionarServico = async () => {
+        // ... (o seu código de adicionarServico não muda) ...
+        // (Copie e cole o seu código original de adicionarServico aqui)
         const servicoId = selectedItems.servico;
         const quantidade = parseInt(document.getElementById('input-servico-qtd').value);
 
@@ -301,9 +346,47 @@ const renderizarItensVenda = () => {
         renderizarItensVenda();
     };
 
+    // --- ATUALIZADO: Finalizar Venda com dados financeiros ---
     const finalizarVenda = async () => {
+        
+        // --- NOVO: Obter e validar dados financeiros ---
+        const formaId = selectFormaPagamento.value;
+        const contaId = selectContaCaixa.value;
+        const dataVenc = inputDataVencimento.value;
+        const formaSelecionada = listaFormasPagamento.find(f => f.id == formaId);
+
+        if (!formaId || !formaSelecionada) {
+            showAlert('Por favor, selecione uma Forma de Pagamento.', false);
+            return; // Impede o envio
+        }
+
+        // Se for A_VISTA, a Conta/Caixa é obrigatória
+        if (formaSelecionada.TipoLancamento === 'A_VISTA' && !contaId) {
+            showAlert('Por favor, selecione a Conta/Caixa de destino.', false);
+            return; 
+        }
+
+        // Se for A_PRAZO, o Cliente e a Data de Vencimento são obrigatórios
+        if (formaSelecionada.TipoLancamento === 'A_PRAZO') {
+            if (!vendaAtual.cliente_id) {
+                showAlert('Vendas "Fiado" (A Prazo) exigem um cliente selecionado.', false);
+                return;
+            }
+            if (!dataVenc) {
+                showAlert('Por favor, insira a Data de Vencimento para o fiado.', false);
+                return;
+            }
+        }
+        
+        // --- NOVO: Atualizar o objeto vendaAtual com os dados financeiros ---
+        vendaAtual.FormaPagamentoID = parseInt(formaId);
+        vendaAtual.ContaCaixaID = (formaSelecionada.TipoLancamento === 'A_VISTA') ? parseInt(contaId) : null;
+        vendaAtual.DataVencimento = (formaSelecionada.TipoLancamento === 'A_PRAZO') ? dataVenc : null;
+
+
         btnFinalizarVenda.disabled = true;
         try {
+            // O seu `fetch` original. O `vendaAtual` agora contém os novos dados!
             const response = await fetch(`${API_URL}/vendas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -315,7 +398,6 @@ const renderizarItensVenda = () => {
             ultimaVendaSalva = { ...vendaAtual, id: result.id, data: new Date() };
             confirmacaoTextoEl.textContent = `Venda #${result.id} | Valor Total: ${formatCurrency(vendaAtual.total)}`;
             
-            // Esconde o formulário e mostra a confirmação
             const parentGrid = vendaForm.querySelector('.grid');
             if(parentGrid) parentGrid.style.display = 'none';
 
@@ -328,52 +410,51 @@ const renderizarItensVenda = () => {
         }
     };
 
-const imprimirRecibo = () => {
-    if (!ultimaVendaSalva) return;
+    const imprimirRecibo = () => {
+        // ... (o seu código de imprimirRecibo não muda) ...
+        // (Copie e cole o seu código original de imprimirRecibo aqui)
+        if (!ultimaVendaSalva) return;
 
-    const template = document.getElementById('recibo-template');
-    const clone = template.content.cloneNode(true);
-    const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
+        const template = document.getElementById('recibo-template');
+        const clone = template.content.cloneNode(true);
+        const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
 
-    // Preenche os dados gerais
-    clone.querySelector('[data-recibo="venda-id"]').textContent = ultimaVendaSalva.id;
-    clone.querySelector('[data-recibo="data"]').textContent = new Date(ultimaVendaSalva.data).toLocaleDateString('pt-BR');
-    clone.querySelector('[data-recibo="cliente-nome"]').textContent = cliente ? cliente.nome : 'Consumidor Final';
+        clone.querySelector('[data-recibo="venda-id"]').textContent = ultimaVendaSalva.id;
+        clone.querySelector('[data-recibo="data"]').textContent = new Date(ultimaVendaSalva.data).toLocaleDateString('pt-BR');
+        clone.querySelector('[data-recibo="cliente-nome"]').textContent = cliente ? cliente.nome : 'Consumidor Final';
 
-    // Preenche a tabela de itens
-    const tabelaItensBody = clone.querySelector('[data-recibo="itens-tabela"]');
-    ultimaVendaSalva.itens.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${item.nome} (${item.tipo})</td>
-            <td class="text-center">${item.quantidade}</td>
-            <td class="text-right">${formatCurrency(item.precoUnitario)}</td>
-            <td class="text-right">${formatCurrency(item.subtotal)}</td>
-        `;
-        tabelaItensBody.appendChild(tr);
-    });
+        const tabelaItensBody = clone.querySelector('[data-recibo="itens-tabela"]');
+        ultimaVendaSalva.itens.forEach(item => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${item.nome} (${item.tipo})</td>
+                <td class="text-center">${item.quantidade}</td>
+                <td class="text-right">${formatCurrency(item.precoUnitario)}</td>
+                <td class="text-right">${formatCurrency(item.subtotal)}</td>
+            `;
+            tabelaItensBody.appendChild(tr);
+        });
 
-    // Preenche a secção de totais e desconto
-    clone.querySelector('[data-recibo="subtotal"]').textContent = formatCurrency(ultimaVendaSalva.subtotal);
-    clone.querySelector('[data-recibo="total"]').textContent = formatCurrency(ultimaVendaSalva.total);
+        clone.querySelector('[data-recibo="subtotal"]').textContent = formatCurrency(ultimaVendaSalva.subtotal);
+        clone.querySelector('[data-recibo="total"]').textContent = formatCurrency(ultimaVendaSalva.total);
 
-    const descontoInfo = clone.querySelector('[data-recibo="desconto-info"]');
-    if (ultimaVendaSalva.desconto_valor > 0) {
-        let valorDoDesconto = 0;
-        if (ultimaVendaSalva.desconto_tipo === '%') {
-            valorDoDesconto = ultimaVendaSalva.subtotal * (ultimaVendaSalva.desconto_valor / 100);
-        } else {
-            valorDoDesconto = ultimaVendaSalva.desconto_valor;
+        const descontoInfo = clone.querySelector('[data-recibo="desconto-info"]');
+        if (ultimaVendaSalva.desconto_valor > 0) {
+            let valorDoDesconto = 0;
+            if (ultimaVendaSalva.desconto_tipo === '%') {
+                valorDoDesconto = ultimaVendaSalva.subtotal * (ultimaVendaSalva.desconto_valor / 100);
+            } else {
+                valorDoDesconto = ultimaVendaSalva.desconto_valor;
+            }
+            clone.querySelector('[data-recibo="desconto"]').textContent = `- ${formatCurrency(valorDoDesconto)}`;
+            descontoInfo.classList.remove('hidden');
         }
-        clone.querySelector('[data-recibo="desconto"]').textContent = `- ${formatCurrency(valorDoDesconto)}`;
-        descontoInfo.classList.remove('hidden');
-    }
 
-    const htmlContent = new XMLSerializer().serializeToString(clone);
-    const filename = `Venda_${ultimaVendaSalva.id}.pdf`;
+        const htmlContent = new XMLSerializer().serializeToString(clone);
+        const filename = `Venda_${ultimaVendaSalva.id}.pdf`;
 
-    window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
-};
+        window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
+    };
 
     const resetarParaNovaVenda = () => {
         window.location.reload();
@@ -397,11 +478,37 @@ const imprimirRecibo = () => {
         }
     });
 
+    // --- NOVO: Event Listener para lógica condicional dos campos ---
+    selectFormaPagamento.addEventListener('change', () => {
+        const formaId = selectFormaPagamento.value;
+        const formaSelecionada = listaFormasPagamento.find(f => f.id == formaId);
+
+        if (!formaSelecionada) {
+            blocoContaCaixa.classList.add('hidden');
+            blocoDataVencimento.classList.add('hidden');
+            return;
+        }
+
+        // Se for A_VISTA (Dinheiro, Pix, etc.), mostra Contas/Caixa
+        if (formaSelecionada.TipoLancamento === 'A_VISTA') {
+            blocoContaCaixa.classList.remove('hidden');
+            blocoDataVencimento.classList.add('hidden');
+            inputDataVencimento.value = ''; // Limpa
+        } 
+        // Se for A_PRAZO (Fiado), mostra Data de Vencimento
+        else if (formaSelecionada.TipoLancamento === 'A_PRAZO') {
+            blocoContaCaixa.classList.add('hidden');
+            blocoDataVencimento.classList.remove('hidden');
+            selectContaCaixa.value = ''; // Limpa
+        }
+    });
+
+
     // --- INICIALIZAÇÃO DA PÁGINA ---
     setupAutocomplete('input-search-cliente', 'results-cliente', 'cliente');
     setupAutocomplete('input-search-produto', 'results-produto', 'produto');
     setupAutocomplete('input-search-servico', 'results-servico', 'servico');
     
-    popularDadosIniciais();
+    popularDadosIniciais(); // Agora isto também carrega os dados financeiros
     renderizarItensVenda();
 });

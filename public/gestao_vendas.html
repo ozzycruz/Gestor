@@ -88,6 +88,27 @@
                                 <span id="total-valor">R$ 0,00</span>
                             </div>
                         </div>
+                        <div class="border-t mt-4 pt-4 space-y-3">
+    
+    <div>
+        <label for="select-forma-pagamento" class="block text-sm font-bold text-gray-700">Forma de Pagamento:</label>
+        <select id="select-forma-pagamento" class="form-input w-full mt-1" required>
+            <option value="">A carregar formas...</option>
+        </select>
+    </div>
+
+    <div id="bloco-conta-caixa" class="hidden">
+        <label for="select-conta-caixa" class="block text-sm font-bold text-gray-700">Pagar para (Conta/Caixa):</label>
+        <select id="select-conta-caixa" class="form-input w-full mt-1">
+            <option value="">A carregar contas...</option>
+        </select>
+    </div>
+
+    <div id="bloco-data-vencimento" class="hidden">
+        <label for="input-data-vencimento" class="block text-sm font-bold text-gray-700">Data de Vencimento:</label>
+        <input type="date" id="input-data-vencimento" class="form-input w-full mt-1">
+    </div>
+</div>
 
                         <button type="submit" id="btn-finalizar-venda" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg mt-6 text-lg shadow disabled:bg-gray-400 disabled:cursor-not-allowed">Finalizar Venda</button>
                     </div>
