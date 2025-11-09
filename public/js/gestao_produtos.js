@@ -1,4 +1,4 @@
-// public/js/gestao_produtos.js
+// public/js/gestao_produtos.js (Versão ATUALIZADA com Ordenação)
 
 document.addEventListener('DOMContentLoaded', () => {
     // --- CONFIGURAÇÃO ---
@@ -17,9 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputDescricao = document.getElementById('produto-descricao');
     const inputEstoque = document.getElementById('produto-estoque');
     const inputPreco = document.getElementById('produto-preco');
-    const inputBusca = document.getElementById('input-busca-produto'); // CORREÇÃO: Referência ao campo de busca
+    const inputBusca = document.getElementById('input-busca-produto');
 
-    let todosOsProdutos = []; // Nova variável global
+    // --- NOVO: Seletores e Variáveis de Ordenação ---
+    const headersTabela = document.querySelectorAll('#tabela-produtos-header th[data-sort]');
+    let todosOsProdutos = [];
+    let sortColumn = 'nome'; // Coluna padrão
+    let sortDirection = 'asc'; // Direção padrão
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -31,7 +35,54 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => { feedbackAlert.style.display = 'none'; }, 4000);
     };
     
-    // CORREÇÃO: A função de desenhar a tabela foi movida para fora, para ser reutilizável.
+    // --- FUNÇÕES PRINCIPAIS (CRUD) ---
+    
+    // 1. Busca os dados da API
+    const carregarProdutos = async () => {
+        try {
+            const response = await fetch(`${API_URL}/produtos`);
+            if (!response.ok) throw new Error('Erro ao carregar produtos.');
+            
+            todosOsProdutos = await response.json();
+            aplicarFiltroEOrdem(); // Chama a nova função central
+        } catch (error) {
+            showAlert(error.message, false);
+        }
+    };
+
+    // 2. ATUALIZADO: Função central que filtra, ordena e desenha
+    const aplicarFiltroEOrdem = () => {
+        const termo = inputBusca.value.toLowerCase();
+
+        // 2a. Filtra
+        const produtosFiltrados = todosOsProdutos.filter(produto => 
+            produto.nome.toLowerCase().includes(termo)
+        );
+
+        // 2b. Ordena (Lógica de ordenação dinâmica)
+        produtosFiltrados.sort((a, b) => {
+            let valA = a[sortColumn];
+            let valB = b[sortColumn];
+
+            // Trata números (estoque, preco)
+            if (sortColumn === 'quantidade_em_estoque' || sortColumn === 'preco_unitario') {
+                valA = parseFloat(valA) || 0;
+                valB = parseFloat(valB) || 0;
+            } else { // Trata strings (nome)
+                valA = (valA || '').toLowerCase();
+                valB = (valB || '').toLowerCase();
+            }
+
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // 2c. Desenha
+        desenharTabela(produtosFiltrados);
+    };
+
+    // 3. A função de desenhar a tabela (sem alterações)
     const desenharTabela = (produtosParaRenderizar) => {
         tabelaProdutosBody.innerHTML = '';
         if (produtosParaRenderizar.length === 0) {
@@ -41,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
         produtosParaRenderizar.forEach(produto => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${produto.nome}</div><div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${produto.nome}</div><div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}...</div></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${produto.quantidade_em_estoque}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(produto.preco_unitario)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -53,21 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- FUNÇÕES PRINCIPAIS (CRUD) ---
-    const renderizarTabela = async () => {
-        try {
-            const response = await fetch(`${API_URL}/produtos`);
-            if (!response.ok) throw new Error('Erro ao carregar produtos.');
-            
-            const produtos = await response.json();
-            todosOsProdutos = produtos; // Guarda a lista completa
-            desenharTabela(todosOsProdutos); // Chama a função para desenhar a tabela inicial
-
-        } catch (error) {
-            showAlert(error.message, false);
-        }
-    };
-
+    // --- Funções do Modal (abrir, fechar, remover) ---
+    // (O seu código original de abrirModal, fecharModal, e removerProduto fica aqui, sem alterações)
     const abrirModal = async (isEdit = false, produtoId = null) => {
         produtoForm.reset();
         inputId.value = '';
@@ -91,8 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             modalTitle.textContent = 'Novo Produto';
         }
         modal.classList.add('active');
-            // Força o foco no primeiro campo após a animação do modal (100ms)
-    setTimeout(() => { document.getElementById('produto-nome').focus(); }, 100);
+        setTimeout(() => { document.getElementById('produto-nome').focus(); }, 100);
     };
 
     const fecharModal = () => modal.classList.remove('active');
@@ -104,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.message);
                 showAlert(result.message);
-                renderizarTabela();
+                carregarProdutos(); // Recarrega a lista
             } catch (error) {
                 showAlert(error.message, false);
             }
@@ -115,6 +152,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNovoProduto.addEventListener('click', () => abrirModal(false));
     btnCancelar.addEventListener('click', fecharModal);
     
+    // Listener do Formulário
     produtoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = inputId.value;
@@ -139,12 +177,13 @@ document.addEventListener('DOMContentLoaded', () => {
             
             showAlert(result.message);
             fecharModal();
-            renderizarTabela();
+            carregarProdutos(); // Recarrega a lista
         } catch (error) {
             showAlert(error.message, false);
         }
     });
 
+    // Listener da Tabela (para Editar/Remover)
     tabelaProdutosBody.addEventListener('click', (e) => {
         const button = e.target.closest('[data-action]');
         if (!button) return;
@@ -160,17 +199,38 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // CORREÇÃO: O event listener da busca foi movido para aqui, para dentro do DOMContentLoaded.
-    inputBusca.addEventListener('input', () => {
-        const termo = inputBusca.value.toLowerCase();
-        const produtosFiltrados = todosOsProdutos
-            .filter(produto => produto.nome.toLowerCase().includes(termo))
-            .sort((a, b) => a.nome.localeCompare(b.nome)); // <-- ADICIONE ESTA LINHA
+    // ATUALIZADO: Listener da Busca (agora só chama a função central)
+    inputBusca.addEventListener('input', aplicarFiltroEOrdem);
 
-        desenharTabela(produtosFiltrados);
+    // --- NOVO: Listener para ORDENAÇÃO ---
+    headersTabela.forEach(header => {
+        header.addEventListener('click', () => {
+            const newSortColumn = header.dataset.sort;
+            
+            // Se clicar na mesma coluna, inverte a direção
+            if (sortColumn === newSortColumn) {
+                sortDirection = (sortDirection === 'asc') ? 'desc' : 'asc';
+            } else {
+                // Se clicar numa nova coluna, define-a como padrão (asc)
+                sortColumn = newSortColumn;
+                sortDirection = 'asc';
+            }
+            
+            // Atualiza as setas
+            headersTabela.forEach(h => {
+                const arrow = h.querySelector('.sort-arrow');
+                if (h.dataset.sort === sortColumn) {
+                    arrow.innerHTML = sortDirection === 'asc' ? ' ▲' : ' ▼';
+                } else {
+                    arrow.innerHTML = ''; // Limpa setas das outras colunas
+                }
+            });
+
+            // Re-renderiza a tabela com a nova ordem
+            aplicarFiltroEOrdem();
+        });
     });
 
     // --- INICIALIZAÇÃO ---
-    renderizarTabela();
+    carregarProdutos();
 });
-// CORREÇÃO: A chave '}' extra no final do ficheiro foi removida.
