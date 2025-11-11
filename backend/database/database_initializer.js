@@ -227,6 +227,8 @@ const seedInitialData = async () => {
         await dbRun("INSERT OR IGNORE INTO CategoriasFinanceiras (Nome, Tipo) VALUES ('Fornecedores', 'DESPESA');");
         await dbRun("INSERT OR IGNORE INTO CategoriasFinanceiras (Nome, Tipo) VALUES ('Outras Receitas', 'RECEITA');");
         await dbRun("INSERT OR IGNORE INTO CategoriasFinanceiras (Nome, Tipo) VALUES ('Outras Despesas', 'DESPESA');");
+        await dbRun("INSERT OR IGNORE INTO CategoriasFinanceiras (Nome, Tipo) VALUES ('Taxas de Cartão', 'DESPESA');");
+        
 
         // Conta Caixa Padrão
         await dbRun("INSERT OR IGNORE INTO ContasCaixa (Nome, SaldoInicial) VALUES ('Caixa Principal', 0.0);");

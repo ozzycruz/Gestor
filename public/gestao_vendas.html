@@ -97,6 +97,19 @@
         </select>
     </div>
 
+    <div id="bloco-parcelamento" class="hidden space-y-2">
+        <div>
+            <label for="select-num-parcelas" class="block text-sm font-bold text-gray-700">Número de Parcelas:</label>
+            <select id="select-num-parcelas" class="form-input w-full mt-1">
+                </select>
+        </div>
+        
+        <div id="info-taxa-parcela" class="hidden text-sm text-gray-700 bg-gray-100 p-2 rounded-md">
+            <p>Taxa de 5% (R$ <span id="valor-taxa">0,00</span>) aplicada.</p>
+            <p class="font-bold">Total: <span id="total-parcelado">3x de R$ 95,00</span></p>
+        </div>
+    </div>
+
     <div id="bloco-conta-caixa" class="hidden">
         <label for="select-conta-caixa" class="block text-sm font-bold text-gray-700">Pagar para (Conta/Caixa):</label>
         <select id="select-conta-caixa" class="form-input w-full mt-1">
