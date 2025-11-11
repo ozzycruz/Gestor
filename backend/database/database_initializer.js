@@ -1,12 +1,13 @@
 // backend/database/database_initializer.js
-// VERSÃO CORRIGIDA - Sem caracteres especiais
+// VERSÃO CORRIGIDA - Migrações Isoladas
 
 const { db, dbRun, dbAll } = require('./database');
 
 // Função que verifica e adiciona colunas (Migrações)
 const runMigrations = async () => {
+    
+    // --- Migração 1: Servicos_OS ---
      try {
-        // Migração Servicos_OS
          const columns = await dbAll("PRAGMA table_info(Servicos_OS);");
          const hasQuantidade = columns.some(col => col.name === 'quantidade');
          if (!hasQuantidade) {
@@ -15,11 +16,13 @@ const runMigrations = async () => {
              console.log('Migração concluída com sucesso!');
          }
      } catch (err) {
+         // Ignora erro se a tabela não existir (será criada depois)
          if (!err.message.includes('no such table: Servicos_OS')) {
-             console.error('Erro durante a migração da base de dados:', err.message);
+             console.error('Erro durante a migração Servicos_OS:', err.message);
          }
      }
     
+    // --- Migração 2: Vendas e Servicos_Venda ---
     try {
         // Migração para a tabela Vendas
         const colunasVenda = await dbAll("PRAGMA table_info(Vendas);");
@@ -47,8 +50,7 @@ const runMigrations = async () => {
             console.log('MIGRANDO: A adicionar coluna "DataVencimento" a Vendas...');
             await dbRun('ALTER TABLE Vendas ADD COLUMN DataVencimento DATE;');
         }
-        // --- FIM DA MIGRAÇÃO ---
-
+        
         // --- MIGRAÇÃO PARA SERVICOS_VENDA ---
         const colunasServicoVenda = await dbAll("PRAGMA table_info(Servicos_Venda);");
         if (!colunasServicoVenda.some(c => c.name === 'quantidade')) {
@@ -57,11 +59,39 @@ const runMigrations = async () => {
             console.log('Migração concluída com sucesso!');
         }
     } catch (err) {
+        // Ignora erros de "tabela não existe" (serão criadas depois)
         if (!err.message.includes('no such table')) {
-            console.error('Erro durante a migração da base de dados:', err.message);
+            console.error('Erro durante a migração Vendas/Servicos_Venda:', err.message);
         }
     }
+    
+    // --- Migração 3: FormasPagamento (ISOLADA) ---
+    try {
+        console.log('MIGRANDO: A verificar colunas de parcelamento em FormasPagamento...');
+        const tabelas = await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name='FormasPagamento';");
+        
+        if (tabelas.length > 0) {
+            const colunasFP = await dbAll("PRAGMA table_info(FormasPagamento);");
+
+            const temAceitaParcelas = colunasFP.some(col => col.name === 'aceitaParcelas');
+            if (!temAceitaParcelas) {
+                console.log('MIGRANDO: A adicionar coluna "aceitaParcelas" a FormasPagamento...');
+                await dbRun('ALTER TABLE FormasPagamento ADD COLUMN aceitaParcelas INTEGER NOT NULL DEFAULT 0;');
+            }
+
+            const temMaxParcelas = colunasFP.some(col => col.name === 'maxParcelas');
+            if (!temMaxParcelas) {
+                console.log('MIGRANDO: A adicionar coluna "maxParcelas" a FormasPagamento...');
+                await dbRun('ALTER TABLE FormasPagamento ADD COLUMN maxParcelas INTEGER NOT NULL DEFAULT 1;');
+            }
+        }
+    } catch (err) {
+        console.error('Erro durante a migração FormasPagamento:', err.message);
+    }
 };
+
+// --- (O resto do seu ficheiro 'createTables' e 'seedInitialData' fica igual) ---
+// (Vou colar o resto por si para garantir)
 
 // Função que cria todas as tabelas (se não existirem)
 const createTables = async () => {
@@ -232,6 +262,8 @@ const seedInitialData = async () => {
 
         // Conta Caixa Padrão
         await dbRun("INSERT OR IGNORE INTO ContasCaixa (Nome, SaldoInicial) VALUES ('Caixa Principal', 0.0);");
+        
+        // O UPDATE que você adicionou
         await dbRun("UPDATE FormasPagamento SET aceitaParcelas = 1, maxParcelas = 12 WHERE Nome = 'Cartão de Crédito';");
         
         console.log('🌱 Sementeira concluída.');
