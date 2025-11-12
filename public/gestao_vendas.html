@@ -62,11 +62,7 @@
                         </div>
 
                         <div class="border-t mt-4 pt-4 space-y-2 text-sm">
-                            <div class="flex justify-between items-center">
-                                <span class="text-gray-600">Subtotal:</span>
-                                <span id="subtotal-valor" class="font-semibold">R$ 0,00</span>
-                            </div>
-                            <div class="flex justify-between items-center">
+                            <div id="bloco-desconto" class="flex justify-between items-center">
                                 <div class="flex items-center gap-2">
                                     <label for="desconto-valor" class="text-gray-600">Desconto:</label>
                                     <select id="desconto-tipo" class="form-input p-1 h-7 text-xs rounded-md">
@@ -75,6 +71,17 @@
                                     </select>
                                 </div>
                                 <input type="number" id="desconto-valor" value="0" min="0" class="form-input w-24 text-right p-1 h-7 text-sm rounded-md">
+                            </div>
+
+                            <div id="bloco-acrescimo" class="hidden flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <label for="acrescimo-valor" class="text-gray-600">Acréscimo (Juros):</label>
+                                    <select id="acrescimo-tipo" class="form-input p-1 h-7 text-xs rounded-md">
+                                        <option value="%">%</option>
+                                        <option value="R$">R$</option>
+                                    </select>
+                                </div>
+                                <input type="number" id="acrescimo-valor" value="0" min="0" class="form-input w-24 text-right p-1 h-7 text-sm rounded-md">
                             </div>
                             <div id="desconto-aplicado-container" class="flex justify-between items-center text-red-600 hidden">
                                 <span>Desconto Aplicado:</span>
@@ -190,20 +197,36 @@
                 </thead>
                 <tbody data-recibo="itens-tabela"></tbody>
             </table>
-            <div class="total-section">
-                <div>
-                    <span>Subtotal:</span>
-                    <span data-recibo="subtotal">R$ 0,00</span>
+                <div class="total-section">
+                    <div>
+                        <span>Subtotal:</span>
+                        <span data-recibo="subtotal">R$ 0,00</span>
+                    </div>
+                    
+                    <div data-recibo="desconto-info" class="hidden">
+                        <span>Desconto:</span>
+                        <span data-recibo="desconto" style="color: #DC2626;">- R$ 0,00</span>
+                    </div>
+                    
+                    <div data-recibo="acrescimo-info" class="hidden">
+                        <span>Acréscimo (Juros):</span>
+                        <span data-recibo="acrescimo" style="color: #16A34A;">+ R$ 0,00</span>
+                    </div>
+                    
+                    <div data-recibo="pagamento-info" class="hidden" style="border-top: 1px solid #eee; padding-top: 5px; margin-top: 5px;">
+                        <span>Forma de Pagamento:</span>
+                        <span data-recibo="pagamento-forma" style="font-weight: bold;"></span>
+                    </div>
+                    <div data-recibo="parcela-info" class="hidden" style="padding-bottom: 5px;">
+                        <span>Detalhes:</span>
+                        <span data-recibo="pagamento-parcelas" style="font-weight: bold;"></span>
+                    </div>
+
+                    <div class="total-final">
+                        <span>TOTAL:</span>
+                        <span data-recibo="total">R$ 0,00</span>
+                    </div>
                 </div>
-                <div data-recibo="desconto-info" class="hidden">
-                    <span>Desconto:</span>
-                    <span data-recibo="desconto" class="text-red-600">- R$ 0,00</span>
-                </div>
-                <div class="total-final">
-                    <span>TOTAL:</span>
-                    <span data-recibo="total">R$ 0,00</span>
-                </div>
-            </div>
             <div class="footer">
                 <p>Obrigado pela sua preferência!</p>
             </div>

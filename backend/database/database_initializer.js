@@ -37,6 +37,17 @@ const runMigrations = async () => {
             console.log('MIGRANDO: A adicionar coluna "desconto_valor" a Vendas...');
             await dbRun('ALTER TABLE Vendas ADD COLUMN desconto_valor REAL DEFAULT 0;');
         }
+        const temAcrescimoTipo = colunasVenda.some(col => col.name === 'acrescimo_tipo');
+        if (!temAcrescimoTipo) {
+            console.log('MIGRANDO: A adicionar coluna "acrescimo_tipo" a Vendas...');
+            await dbRun('ALTER TABLE Vendas ADD COLUMN acrescimo_tipo TEXT;');
+        }
+        
+        const temAcrescimoValor = colunasVenda.some(col => col.name === 'acrescimo_valor');
+        if (!temAcrescimoValor) {
+            console.log('MIGRANDO: A adicionar coluna "acrescimo_valor" a Vendas...');
+            await dbRun('ALTER TABLE Vendas ADD COLUMN acrescimo_valor REAL DEFAULT 0;');
+        }
 
         // --- MIGRAÇÃO FINANCEIRA PARA A TABELA VENDAS ---
         const temFormaPagamento = colunasVenda.some(col => col.name === 'FormaPagamentoID');
@@ -66,11 +77,11 @@ const runMigrations = async () => {
     }
     
     // --- Migração 3: FormasPagamento (ISOLADA) ---
-    try {
+try {
         console.log('MIGRANDO: A verificar colunas de parcelamento em FormasPagamento...');
         const tabelas = await dbAll("SELECT name FROM sqlite_master WHERE type='table' AND name='FormasPagamento';");
         
-        if (tabelas.length > 0) {
+        if (tabelas.length > 0) { // Só corre se a tabela FormasPagamento existir
             const colunasFP = await dbAll("PRAGMA table_info(FormasPagamento);");
 
             const temAceitaParcelas = colunasFP.some(col => col.name === 'aceitaParcelas');
@@ -84,6 +95,8 @@ const runMigrations = async () => {
                 console.log('MIGRANDO: A adicionar coluna "maxParcelas" a FormasPagamento...');
                 await dbRun('ALTER TABLE FormasPagamento ADD COLUMN maxParcelas INTEGER NOT NULL DEFAULT 1;');
             }
+        } else {
+            console.log('MIGRANDO: Tabela FormasPagamento ainda não existe, a pular migração de parcelas.');
         }
     } catch (err) {
         console.error('Erro durante a migração FormasPagamento:', err.message);

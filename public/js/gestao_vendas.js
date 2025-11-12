@@ -1,10 +1,9 @@
-// public/js/gestao_vendas.js (Versão Final, Limpa e Corrigida)
+// public/js/gestao_vendas.js (Versão Final, 100% Corrigida)
 
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- CONFIGURAÇÃO E VARIÁVEIS GLOBAIS ---
     const API_URL = 'http://localhost:3002/api';
-    const TAXA_PARCELAMENTO = 0.05; // Taxa de 5%
     
     let listaClientes = [], listaProdutos = [], listaServicos = [];
     let listaFormasPagamento = [];
@@ -17,6 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
         subtotal: 0,
         desconto_tipo: 'R$',
         desconto_valor: 0,
+        acrescimo_tipo: '%', // NOVO
+        acrescimo_valor: 0,  // NOVO
         FormaPagamentoID: null,
         ContaCaixaID: null,
         DataVencimento: null,
@@ -26,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedItems = { cliente: null, produto: null, servico: null };
     let ultimaVendaSalva = null;
 
-    // --- REFERÊNCIAS AOS ELEMENTOS DO DOM ---
+    // --- REFERÊNCIAS AOS ELEMENTOS DO DOM (COMPLETAS E CORRIGIDAS) ---
     const btnAddProduto = document.getElementById('btn-add-produto');
     const btnAddServico = document.getElementById('btn-add-servico');
     const btnFinalizarVenda = document.getElementById('btn-finalizar-venda');
@@ -37,8 +38,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const confirmacaoTextoEl = document.getElementById('confirmacao-texto');
     const btnNovaVenda = document.getElementById('btn-nova-venda');
     const btnImprimirRecibo = document.getElementById('btn-imprimir-recibo');
+    const feedbackAlert = document.getElementById('feedback-alert'); // <-- Esta estava a faltar na declaração
+    
+    // Referências do Resumo (Corrigido)
     const inputDescontoValor = document.getElementById('desconto-valor');
     const selectDescontoTipo = document.getElementById('desconto-tipo');
+    const blocoDesconto = document.getElementById('bloco-desconto');
+    const descontoAplicadoContainer = document.getElementById('desconto-aplicado-container');
+    const descontoAplicadoValor = document.getElementById('desconto-aplicado-valor');
+    
+    // Referências do Acréscimo (Corrigido)
+    const inputAcrescimoValor = document.getElementById('acrescimo-valor');
+    const selectAcrescimoTipo = document.getElementById('acrescimo-tipo');
+    const blocoAcrescimo = document.getElementById('bloco-acrescimo');
+
+    // Referências Financeiras (Corrigido)
     const selectFormaPagamento = document.getElementById('select-forma-pagamento');
     const selectContaCaixa = document.getElementById('select-conta-caixa');
     const inputDataVencimento = document.getElementById('input-data-vencimento');
@@ -46,25 +60,38 @@ document.addEventListener('DOMContentLoaded', () => {
     const blocoDataVencimento = document.getElementById('bloco-data-vencimento');
     const blocoParcelamento = document.getElementById('bloco-parcelamento');
     const selectNumParcelas = document.getElementById('select-num-parcelas');
-    const infoTaxaParcela = document.getElementById('info-taxa-parcela');
-    const valorTaxaEl = document.getElementById('valor-taxa');
-    const totalParceladoEl = document.getElementById('total-parcelado');
+    // const infoTaxaParcela = document.getElementById('info-taxa-parcela'); // Removido (não precisamos mais)
 
-    // --- LISTENERS DE DESCONTO ---
-    inputDescontoValor.addEventListener('input', () => {
-        vendaAtual.desconto_valor = parseFloat(inputDescontoValor.value) || 0;
-        renderizarItensVenda(); 
-    });
-    selectDescontoTipo.addEventListener('change', () => {
-        vendaAtual.desconto_tipo = selectDescontoTipo.value;
-        renderizarItensVenda(); 
-    });
+    // --- LISTENERS DE DESCONTO E ACRÉSCIMO ---
+    if (inputDescontoValor) {
+        inputDescontoValor.addEventListener('input', () => {
+            vendaAtual.desconto_valor = parseFloat(inputDescontoValor.value) || 0;
+            renderizarItensVenda(); 
+        });
+    }
+    if (selectDescontoTipo) {
+        selectDescontoTipo.addEventListener('change', () => {
+            vendaAtual.desconto_tipo = selectDescontoTipo.value;
+            renderizarItensVenda(); 
+        });
+    }
+    if (inputAcrescimoValor) {
+        inputAcrescimoValor.addEventListener('input', () => {
+            vendaAtual.acrescimo_valor = parseFloat(inputAcrescimoValor.value) || 0;
+            renderizarItensVenda(); 
+        });
+    }
+    if (selectAcrescimoTipo) {
+        selectAcrescimoTipo.addEventListener('change', () => {
+            vendaAtual.acrescimo_tipo = selectAcrescimoTipo.value;
+            renderizarItensVenda(); 
+        });
+    }
 
     // --- FUNÇÕES AUXILIARES ---
     const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
     const showAlert = (message, isSuccess = true) => {
-        const feedbackAlert = document.getElementById('feedback-alert');
-        if (!feedbackAlert) return;
+        if (!feedbackAlert) return; // <-- Verificação de segurança
         feedbackAlert.textContent = message;
         feedbackAlert.className = `p-4 mb-4 text-sm rounded-lg ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
         feedbackAlert.classList.remove('hidden');
@@ -75,6 +102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const setupAutocomplete = (inputId, resultsId, type) => {
         const input = document.getElementById(inputId);
         const results = document.getElementById(resultsId);
+        if (!input || !results) return; // <-- Verificação de segurança
+        
         let activeIndex = -1;
 
         const updateActiveItem = () => {
@@ -184,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- FUNÇÃO DE CARREGAMENTO DE DADOS (Corrigida e Limpa) ---
     const popularDadosIniciais = async () => {
         try {
-            // Busca tudo em paralelo
             const [clientesRes, formasRes, contasRes] = await Promise.all([
                 fetch(`${API_URL}/clientes`),
                 fetch(`${API_URL}/financeiro/formaspagamento`),
@@ -195,7 +223,7 @@ document.addEventListener('DOMContentLoaded', () => {
             listaFormasPagamento = await formasRes.json();
             listaContasCaixa = await contasRes.json();
 
-            // Preenche Formas de Pagamento (Versão única e correta)
+            // Preenche Formas de Pagamento
             selectFormaPagamento.innerHTML = '<option value="">Selecione a forma...</option>';
             listaFormasPagamento.forEach(forma => {
                 const option = document.createElement('option');
@@ -222,15 +250,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- FUNÇÕES DE RENDERIZAÇÃO E CÁLCULO ---
+    // --- FUNÇÕES DE RENDERIZAÇÃO E CÁLCULO (Corrigida) ---
     const renderizarItensVenda = () => {
+        if (!itensVendaContainer) return; // <-- Verificação de segurança
+        
         itensVendaContainer.innerHTML = '';
         let subtotal = 0;
 
         if (vendaAtual.itens.length === 0) {
-            carrinhoVazioMsg.style.display = 'block';
+            if (carrinhoVazioMsg) carrinhoVazioMsg.style.display = 'block';
         } else {
-            carrinhoVazioMsg.style.display = 'none';
+            if (carrinhoVazioMsg) carrinhoVazioMsg.style.display = 'none';
             vendaAtual.itens.forEach((item, index) => {
                 const itemDiv = document.createElement('div');
                 itemDiv.className = 'flex justify-between items-center text-sm p-2 bg-gray-50 rounded';
@@ -245,37 +275,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 subtotal += item.subtotal; 
             });
         }
-
-        let valorDoDesconto = 0;
-        if (vendaAtual.desconto_tipo === '%') {
-            valorDoDesconto = subtotal * (vendaAtual.desconto_valor / 100);
-        } else {
-            valorDoDesconto = vendaAtual.desconto_valor;
-        }
-        
-        if (valorDoDesconto > subtotal) valorDoDesconto = subtotal;
-
-        const totalFinal = subtotal - valorDoDesconto;
-
         vendaAtual.subtotal = subtotal;
-        vendaAtual.total = totalFinal;
-
-        document.getElementById('subtotal-valor').textContent = formatCurrency(subtotal);
-        const descontoAplicadoContainer = document.getElementById('desconto-aplicado-container');
-        if (valorDoDesconto > 0) {
-            document.getElementById('desconto-aplicado-valor').textContent = `- ${formatCurrency(valorDoDesconto)}`;
-            descontoAplicadoContainer.classList.remove('hidden');
-        } else {
-            descontoAplicadoContainer.classList.add('hidden');
-        }
-        document.getElementById('total-valor').textContent = formatCurrency(totalFinal);
         
-        // Atualiza o cálculo de parcelas (se visível)
-        atualizarBlocoParcelamento();
+        // --- CÁLCULO TOTAL (Corrigido com verificações) ---
+        let valorDoDesconto = 0;
+        let valorDoAcrescimo = 0;
 
-        btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
+        if (blocoDesconto && !blocoDesconto.classList.contains('hidden')) {
+            if (vendaAtual.desconto_tipo === '%') {
+                valorDoDesconto = subtotal * (vendaAtual.desconto_valor / 100);
+            } else {
+                valorDoDesconto = vendaAtual.desconto_valor;
+            }
+        }
+        
+        if (blocoAcrescimo && !blocoAcrescimo.classList.contains('hidden')) {
+            if (vendaAtual.acrescimo_tipo === '%') {
+                valorDoAcrescimo = subtotal * (vendaAtual.acrescimo_valor / 100);
+            } else {
+                valorDoAcrescimo = vendaAtual.acrescimo_valor;
+            }
+        }
+
+        if (valorDoDesconto > subtotal) valorDoDesconto = subtotal;
+        const totalFinal = subtotal - valorDoDesconto + valorDoAcrescimo;
+        vendaAtual.total = totalFinal;
+        // Guarda os valores calculados no objeto principal
+        vendaAtual.desconto_valor = valorDoDesconto;
+        vendaAtual.desconto_tipo = (blocoDesconto && !blocoDesconto.classList.contains('hidden')) ? selectDescontoTipo.value : 'R$';
+        vendaAtual.acrescimo_valor = valorDoAcrescimo;
+        vendaAtual.acrescimo_tipo = (blocoAcrescimo && !blocoAcrescimo.classList.contains('hidden')) ? selectAcrescimoTipo.value : '%';
+
+        // --- ATUALIZAÇÃO DA INTERFACE (Corrigido com verificações) ---
+        const subtotalEl = document.getElementById('subtotal-valor');
+        if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
+
+        if (descontoAplicadoContainer) {
+            if (valorDoDesconto > 0) {
+                if(descontoAplicadoValor) descontoAplicadoValor.textContent = `- ${formatCurrency(valorDoDesconto)}`;
+                descontoAplicadoContainer.classList.remove('hidden');
+            } else {
+                descontoAplicadoContainer.classList.add('hidden');
+            }
+        }
+        
+        const totalEl = document.getElementById('total-valor');
+        if (totalEl) totalEl.textContent = formatCurrency(totalFinal);
+        
+        if (btnFinalizarVenda) btnFinalizarVenda.disabled = vendaAtual.itens.length === 0;
     };
     
+    // --- FUNÇÕES DE ADICIONAR/REMOVER ITENS ---
     const adicionarProduto = async () => {
         const produtoId = selectedItems.produto;
         const quantidade = parseInt(document.getElementById('input-produto-qtd').value);
@@ -338,47 +388,65 @@ document.addEventListener('DOMContentLoaded', () => {
         renderizarItensVenda();
     };
 
-    // --- FUNÇÕES DE LÓGICA DE PAGAMENTO ---
+    // --- FUNÇÕES DE LÓGICA DE PAGAMENTO (A SUA LÓGICA) ---
     function handleFormaPagamentoChange() {
         const formaSelecionadaEl = selectFormaPagamento.options[selectFormaPagamento.selectedIndex];
-        if (!formaSelecionadaEl || !formaSelecionadaEl.value) {
-            blocoParcelamento.classList.add('hidden');
-            blocoContaCaixa.classList.add('hidden');
-            blocoDataVencimento.classList.add('hidden');
-            return;
-        }
-        const tipo = formaSelecionadaEl.dataset.tipo;
-        const aceitaParcelas = formaSelecionadaEl.dataset.aceitaParcelas === '1';
-        const maxParcelas = parseInt(formaSelecionadaEl.dataset.maxParcelas) || 1;
         
+        // Reseta tudo o que for condicional
         blocoParcelamento.classList.add('hidden');
         blocoContaCaixa.classList.add('hidden');
         blocoDataVencimento.classList.add('hidden');
-        infoTaxaParcela.classList.add('hidden');
+        blocoDesconto.classList.remove('hidden'); // <<-- DESCONTO VISÍVEL por padrão
+        blocoAcrescimo.classList.add('hidden'); // <<-- ACRÉSCIMO OCULTO por padrão
+        
+        inputAcrescimoValor.value = 0; 
+        vendaAtual.acrescimo_valor = 0;
 
+        if (!formaSelecionadaEl || !formaSelecionadaEl.value) {
+            renderizarItensVenda(); 
+            return;
+        }
+
+        const tipo = formaSelecionadaEl.dataset.tipo;
+        const aceitaParcelas = formaSelecionadaEl.dataset.aceitaParcelas === '1';
+        
         if (tipo === 'A_PRAZO') { // "Fiado"
             blocoDataVencimento.classList.remove('hidden');
+            blocoDesconto.classList.add('hidden'); 
+            inputDescontoValor.value = 0; 
+            vendaAtual.desconto_valor = 0;
             vendaAtual.numParcelas = 1; 
-        } else if (aceitaParcelas) { // "Cartão de Crédito"
-            blocoParcelamento.classList.remove('hidden');
+        } 
+        else if (aceitaParcelas) { // "Cartão de Crédito"
             blocoContaCaixa.classList.remove('hidden'); 
-            selectNumParcelas.innerHTML = '';
-            for (let i = 1; i <= maxParcelas; i++) {
-                const option = document.createElement('option');
-                option.value = i;
-                option.textContent = `${i}x` + (i > 1 ? ` (com taxa 5%)` : ` (sem taxa)`);
-                selectNumParcelas.appendChild(option);
-            }
-            atualizarBlocoParcelamento();
-        } else { // "Pix / Dinheiro"
+            blocoParcelamento.classList.remove('hidden'); 
+            preencherOpcoesParcela(formaSelecionadaEl.dataset.maxParcelas);
+            atualizarBlocoParcelamento(); 
+        } 
+        else { // "Pix / Dinheiro"
             blocoContaCaixa.classList.remove('hidden');
             vendaAtual.numParcelas = 1;
         }
+        
+        renderizarItensVenda(); 
     }
     
+    function preencherOpcoesParcela(maxParcelas) {
+        selectNumParcelas.innerHTML = '';
+        maxParcelas = parseInt(maxParcelas) || 1; 
+        for (let i = 1; i <= maxParcelas; i++) {
+            const option = document.createElement('option');
+            option.value = i;
+            option.textContent = (i === 1) ? "1x (À Vista)" : `${i}x`;
+            selectNumParcelas.appendChild(option);
+        }
+    }
+
     function atualizarBlocoParcelamento() {
-        // Só executa se o bloco estiver visível
         if (blocoParcelamento.classList.contains('hidden')) {
+            blocoAcrescimo.classList.add('hidden');
+            inputAcrescimoValor.value = 0;
+            vendaAtual.acrescimo_valor = 0;
             return;
         }
 
@@ -386,21 +454,18 @@ document.addEventListener('DOMContentLoaded', () => {
         vendaAtual.numParcelas = numParcelas; 
 
         if (numParcelas > 1) {
-            const total = vendaAtual.total;
-            const valorTaxa = parseFloat((total * TAXA_PARCELAMENTO).toFixed(2));
-            const valorLiquido = total - valorTaxa;
-            const valorParcela = parseFloat((valorLiquido / numParcelas).toFixed(2));
-            const valorUltimaParcela = valorLiquido - (valorParcela * (numParcelas - 1));
-            
-            valorTaxaEl.textContent = valorTaxa.toFixed(2);
-            totalParceladoEl.textContent = `${numParcelas}x de ${formatCurrency(valorParcela)} (última de ${formatCurrency(valorUltimaParcela)})`;
-            infoTaxaParcela.classList.remove('hidden');
-        } else {
-            infoTaxaParcela.classList.add('hidden');
+            blocoAcrescimo.classList.remove('hidden');
+        } 
+        else {
+            blocoAcrescimo.classList.add('hidden');
+            inputAcrescimoValor.value = 0;
+            vendaAtual.acrescimo_valor = 0;
         }
+        
+        renderizarItensVenda();
     }
 
-    // --- FUNÇÃO DE FINALIZAR VENDA ---
+    // --- FUNÇÃO DE FINALIZAR VENDA (Simplificada) ---
     const finalizarVenda = async () => {
         const formaId = selectFormaPagamento.value;
         const contaId = selectContaCaixa.value;
@@ -409,7 +474,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         vendaAtual.FormaPagamentoID = parseInt(formaId);
         vendaAtual.numParcelas = parseInt(selectNumParcelas.value) || 1; 
-
+        
         if (!formaId || !formaSelecionada) {
             showAlert('Por favor, selecione uma Forma de Pagamento.', false); return;
         }
@@ -430,6 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         btnFinalizarVenda.disabled = true;
         try {
+            // O backend agora só se preocupa com o 'total' (que já inclui acréscimo/desconto)
             const response = await fetch(`${API_URL}/vendas`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -477,16 +543,35 @@ document.addEventListener('DOMContentLoaded', () => {
         clone.querySelector('[data-recibo="subtotal"]').textContent = formatCurrency(ultimaVendaSalva.subtotal);
         clone.querySelector('[data-recibo="total"]').textContent = formatCurrency(ultimaVendaSalva.total);
 
+        // Lógica do Desconto
         const descontoInfo = clone.querySelector('[data-recibo="desconto-info"]');
         if (ultimaVendaSalva.desconto_valor > 0) {
-            let valorDoDesconto = 0;
-            if (ultimaVendaSalva.desconto_tipo === '%') {
-                valorDoDesconto = ultimaVendaSalva.subtotal * (ultimaVendaSalva.desconto_valor / 100);
-            } else {
-                valorDoDesconto = ultimaVendaSalva.desconto_valor;
-            }
-            clone.querySelector('[data-recibo="desconto"]').textContent = `- ${formatCurrency(valorDoDesconto)}`;
+            clone.querySelector('[data-recibo="desconto"]').textContent = `- ${formatCurrency(ultimaVendaSalva.desconto_valor)}`;
             descontoInfo.classList.remove('hidden');
+        }
+        
+        // Lógica do Acréscimo (NOVO)
+        const acrescimoInfo = clone.querySelector('[data-recibo="acrescimo-info"]');
+        if (ultimaVendaSalva.acrescimo_valor > 0) {
+            clone.querySelector('[data-recibo="acrescimo"]').textContent = `+ ${formatCurrency(ultimaVendaSalva.acrescimo_valor)}`;
+            acrescimoInfo.classList.remove('hidden');
+        }
+        
+        // Lógica da Forma de Pagamento (já existente)
+        const pagtoInfo = clone.querySelector('[data-recibo="pagamento-info"]');
+        const pagtoFormaEl = clone.querySelector('[data-recibo="pagamento-forma"]');
+        const parcelaInfo = clone.querySelector('[data-recibo="parcela-info"]');
+        const parcelaDetalheEl = clone.querySelector('[data-recibo="pagamento-parcelas"]');
+
+        const formaPagamento = listaFormasPagamento.find(f => f.id === ultimaVendaSalva.FormaPagamentoID);
+
+        if (formaPagamento) {
+            pagtoFormaEl.textContent = formaPagamento.Nome;
+            pagtoInfo.classList.remove('hidden'); 
+            if (ultimaVendaSalva.numParcelas > 1) {
+                parcelaDetalheEl.textContent = `${ultimaVendaSalva.numParcelas}x`;
+                parcelaInfo.classList.remove('hidden');
+            }
         }
 
         const htmlContent = new XMLSerializer().serializeToString(clone);
@@ -494,29 +579,28 @@ document.addEventListener('DOMContentLoaded', () => {
         window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
     };
 
-    const resetarParaNovaVenda = () => {
+const resetarParaNovaVenda = () => {
         window.location.reload();
     };
 
-    // --- REGISTO DOS EVENT LISTENERS ---
-    btnAddProduto.addEventListener('click', adicionarProduto);
-    btnAddServico.addEventListener('click', adicionarServico);
-    vendaForm.addEventListener('submit', (e) => {
+    // --- REGISTO DOS EVENT LISTENERS (Corrigido com verificações) ---
+    if(btnAddProduto) btnAddProduto.addEventListener('click', adicionarProduto);
+    if(btnAddServico) btnAddServico.addEventListener('click', adicionarServico);
+    if(vendaForm) vendaForm.addEventListener('submit', (e) => {
         e.preventDefault();
         finalizarVenda();
     });
-    btnNovaVenda.addEventListener('click', resetarParaNovaVenda);
-    btnImprimirRecibo.addEventListener('click', imprimirRecibo);
-    itensVendaContainer.addEventListener('click', (e) => {
+    if(btnNovaVenda) btnNovaVenda.addEventListener('click', resetarParaNovaVenda);
+    if(btnImprimirRecibo) btnImprimirRecibo.addEventListener('click', imprimirRecibo);
+    if(itensVendaContainer) itensVendaContainer.addEventListener('click', (e) => {
         const button = e.target.closest('[data-action="remover-item"]');
         if (button) {
             removerItem(parseInt(button.dataset.index));
         }
     });
 
-    // --- Listeners de Pagamento (Corrigidos, sem duplicados) ---
-    selectFormaPagamento.addEventListener('change', handleFormaPagamentoChange);
-    selectNumParcelas.addEventListener('change', atualizarBlocoParcelamento);
+    if(selectFormaPagamento) selectFormaPagamento.addEventListener('change', handleFormaPagamentoChange);
+    if(selectNumParcelas) selectNumParcelas.addEventListener('change', atualizarBlocoParcelamento);
 
     // --- INICIALIZAÇÃO DA PÁGINA ---
     setupAutocomplete('input-search-cliente', 'results-cliente', 'cliente');
