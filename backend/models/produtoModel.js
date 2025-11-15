@@ -28,18 +28,20 @@ const findById = (id) => {
 // ... (resto das funções criar, atualizar, remover ficam iguais) ...
 
 const create = (produto) => {
-    const { nome, descricao, quantidade_em_estoque, preco_unitario } = produto;
+    // ATUALIZADO: Adicionado 'valor_custo'
+    const { nome, descricao, quantidade_em_estoque, preco_unitario, valor_custo } = produto;
     return dbRun(
-        'INSERT INTO Produtos (nome, descricao, quantidade_em_estoque, preco_unitario) VALUES (?, ?, ?, ?)',
-        [nome, descricao, quantidade_em_estoque, preco_unitario]
+        'INSERT INTO Produtos (nome, descricao, quantidade_em_estoque, preco_unitario, valor_custo) VALUES (?, ?, ?, ?, ?)',
+        [nome, descricao, quantidade_em_estoque, preco_unitario, valor_custo]
     );
 };
 
 const update = (id, produto) => {
-    const { nome, descricao, quantidade_em_estoque, preco_unitario } = produto;
+    // ATUALIZADO: Adicionado 'valor_custo'
+    const { nome, descricao, quantidade_em_estoque, preco_unitario, valor_custo } = produto;
     return dbRun(
-        'UPDATE Produtos SET nome = ?, descricao = ?, quantidade_em_estoque = ?, preco_unitario = ? WHERE id = ?',
-        [nome, descricao, quantidade_em_estoque, preco_unitario, id]
+        'UPDATE Produtos SET nome = ?, descricao = ?, quantidade_em_estoque = ?, preco_unitario = ?, valor_custo = ? WHERE id = ?',
+        [nome, descricao, quantidade_em_estoque, preco_unitario, valor_custo, id]
     );
 };
 

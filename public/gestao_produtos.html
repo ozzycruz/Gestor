@@ -38,6 +38,7 @@
                                 <th data-sort="quantidade_em_estoque" class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                     Estoque <span class="sort-arrow"></span>
                                 </th>
+                                <th data-sort="valor_custo" class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Custo <span class="sort-arrow"></span></th>
                                 <th data-sort="preco_unitario" class="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">
                                     Preço Unitário <span class="sort-arrow"></span>
                                 </th>
@@ -69,6 +70,10 @@
                     <div class="mb-4">
                         <label for="produto-estoque" class="block text-sm font-medium text-gray-700">Qtd. em Estoque</label>
                         <input type="number" id="produto-estoque" required value="0" class="form-input mt-1 block w-full">
+                    </div>
+                    <div class="mb-4">
+                        <label for="produto-custo" class="block text-sm font-medium text-gray-700">Valor Custo (R$)</label>
+                        <input type="text" id="produto-custo" required placeholder="12,50" value="0" class="form-input mt-1 block w-full">
                     </div>
                     <div class="mb-4">
                         <label for="produto-preco" class="block text-sm font-medium text-gray-700">Preço Unitário (R$)</label>

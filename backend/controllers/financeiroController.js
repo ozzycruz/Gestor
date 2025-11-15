@@ -230,29 +230,51 @@ const getRelatorioDRE = async (req, res) => {
             return res.status(400).json({ message: "As datas de início e fim são obrigatórias." });
         }
 
-        const grupos = await FinanceiroModel.getDRE(data_inicio, data_fim);
+        // 1. Chama o novo Model
+        const { grupos, totalCMV } = await FinanceiroModel.getDRE(data_inicio, data_fim);
 
-        let TotalReceitas = 0, TotalDespesas = 0;
-        const ReceitasDetalhadas = [], DespesasDetalhadas = [];
+        // 2. Processa os resultados
+        let TotalReceitasProdutos = 0;
+        let TotalOutrasReceitas = 0;
+        let TotalDespesas = 0;
+        
+        const ReceitasDetalhadas = [];
+        const DespesasDetalhadas = [];
 
         for (const grupo of grupos) {
             const total = parseFloat(grupo.TotalPorCategoria);
+            
             if (grupo.Tipo === 'RECEITA') {
+                // Separa Receita de Produto das outras
+                if (grupo.CategoriaNome === 'Venda de Produtos') {
+                    TotalReceitasProdutos += total;
+                } else {
+                    TotalOutrasReceitas += total;
+                }
                 ReceitasDetalhadas.push({ categoria: grupo.CategoriaNome, total: total });
-                TotalReceitas += total;
-            } else {
+            } else { // DESPESA
                 DespesasDetalhadas.push({ categoria: grupo.CategoriaNome, total: total });
                 TotalDespesas += total;
             }
         }
 
+        // 3. Monta o DRE Financeiro
+        const TotalReceitas = TotalReceitasProdutos + TotalOutrasReceitas;
+        const LucroBruto = TotalReceitasProdutos - totalCMV; // LUCRO BRUTO = Vendas - Custo
+        const LucroLiquido = (LucroBruto + TotalOutrasReceitas) - TotalDespesas;
+
+        // 4. Monta o JSON de resposta
         const dre = {
-            TotalReceitas, TotalDespesas,
-            LucroPrejuizo: TotalReceitas - TotalDespesas,
+            TotalReceitas: TotalReceitas,
+            TotalDespesas: TotalDespesas,
+            TotalCMV: totalCMV, // O Custo
+            LucroBruto: LucroBruto, // O Lucro dos Produtos
+            LucroLiquido: LucroLiquido, // O Lucro Final
             Receitas: ReceitasDetalhadas,
             Despesas: DespesasDetalhadas
         };
         res.status(200).json(dre);
+
     } catch (error) {
         console.error("Erro ao gerar DRE:", error);
         res.status(500).json({ message: "Erro interno ao gerar relatório." });

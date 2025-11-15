@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale-1.0">
+    <title>Relatórios - Gestão de Oficina</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-7xl mx-auto">
+        <header class="mb-6">
+            <a href="index.html" class="text-blue-600 hover:underline">&larr; Voltar à Página Inicial</a>
+            <h1 class="text-3xl font-bold text-gray-800 mt-2">Relatórios Financeiros</h1>
+        </header>
+        <div id="feedback-alert" class="feedback-alert" style="display: none;"></div>
+
+        <div class="card p-6">
+            <form id="form-relatorio-dre" class="flex flex-col md:flex-row md:items-end gap-4">
+                <div>
+                    <label for="data-inicio" class="block text-sm font-medium text-gray-700">Data Início:</label>
+                    <input type="date" id="data-inicio" class="form-input mt-1">
+                </div>
+                <div>
+                    <label for="data-fim" class="block text-sm font-medium text-gray-700">Data Fim:</label>
+                    <input type="date" id="data-fim" class="form-input mt-1">
+                </div>
+                <button type="submit" id="btn-gerar-dre" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg shadow h-10">
+                    Gerar Relatório DRE
+                </button>
+            </form>
+        </div>
+
+        <div id="area-relatorio" class="card mt-6 p-6 min-h-[300px]">
+            <p class="text-center text-gray-500">Por favor, selecione um período e clique em "Gerar" para ver o seu Demonstrativo de Resultado (DRE).</p>
+            
+            </div>
+    </div>
+
+    <script src="js/relatorios.js" defer></script>
+</body>
+</html>

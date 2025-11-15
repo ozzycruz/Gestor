@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputDescricao = document.getElementById('produto-descricao');
     const inputEstoque = document.getElementById('produto-estoque');
     const inputPreco = document.getElementById('produto-preco');
+    const inputCusto = document.getElementById('produto-custo');
     const inputBusca = document.getElementById('input-busca-produto');
 
     // --- NOVO: Seletores e Variáveis de Ordenação ---
@@ -26,8 +27,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let sortDirection = 'asc'; // Direção padrão
 
     // --- FUNÇÕES AUXILIARES ---
-    const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-    const parseCurrency = (value) => parseFloat(String(value).replace(/\./g, '').replace(',', '.'));
+const formatCurrency = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+    // Função que converte "19,90" para 19.90 (número)
+    const parseCurrency = (value) => {
+        if (typeof value !== 'string') return value;
+        return parseFloat(value.replace(/\./g, '').replace(',', '.')) || 0;
+    };
+    // Função que converte 19.9 para "19,90" (texto para input)
+    const formatCurrencyForInput = (value) => {
+        return (parseFloat(value) || 0).toFixed(2).replace('.', ',');
+    };
+    
     const showAlert = (message, isSuccess = true) => {
         feedbackAlert.textContent = message;
         feedbackAlert.className = `feedback-alert p-4 mb-4 text-sm rounded-lg ${isSuccess ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`;
@@ -82,18 +92,24 @@ document.addEventListener('DOMContentLoaded', () => {
         desenharTabela(produtosFiltrados);
     };
 
-    // 3. A função de desenhar a tabela (sem alterações)
+// 3. A função de desenhar a tabela (ATUALIZADA)
     const desenharTabela = (produtosParaRenderizar) => {
         tabelaProdutosBody.innerHTML = '';
         if (produtosParaRenderizar.length === 0) {
-            tabelaProdutosBody.innerHTML = `<tr><td colspan="4" class="text-center text-gray-500 py-4">Nenhum produto encontrado.</td></tr>`;
+            tabelaProdutosBody.innerHTML = `<tr><td colspan="5" class="text-center text-gray-500 py-4">Nenhum produto encontrado.</td></tr>`;
             return;
         }
         produtosParaRenderizar.forEach(produto => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-gray-900">${produto.nome}</div><div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}...</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-gray-900">${produto.nome}</div>
+                    <div class="text-sm text-gray-500">${(produto.descricao || '').substring(0, 40)}...</div>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${produto.quantidade_em_estoque}</td>
+                
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(produto.valor_custo)}</td>
+                
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${formatCurrency(produto.preco_unitario)}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button data-action="editar-produto" data-produto-id="${produto.id}" class="text-indigo-600 hover:text-indigo-900 mr-3">Editar</button>
@@ -104,23 +120,25 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Funções do Modal (abrir, fechar, remover) ---
-
+// --- Funções do Modal (ATUALIZADAS) ---
+    
     const abrirModal = async (isEdit = false, produtoId = null) => {
         produtoForm.reset();
         inputId.value = '';
         if (isEdit && produtoId) {
             modalTitle.textContent = 'Editar Produto';
             try {
-                const response = await fetch(`${API_URL}/produtos/${produtoId}`);
-                if (!response.ok) throw new Error('Produto não encontrado.');
-                const produto = await response.json();
+                // Usamos a lista local em vez de buscar na API
+                const produto = todosOsProdutos.find(p => p.id === produtoId);
+                if (!produto) throw new Error('Produto não encontrado na lista local.');
                 
                 inputId.value = produto.id;
                 inputNome.value = produto.nome;
                 inputDescricao.value = produto.descricao;
                 inputEstoque.value = produto.quantidade_em_estoque;
-                inputPreco.value = parseFloat(produto.preco_unitario).toFixed(2).replace('.', ',');
+                // ATUALIZADO: Popula o Custo e o Preço
+                inputCusto.value = formatCurrencyForInput(produto.valor_custo);
+                inputPreco.value = formatCurrencyForInput(produto.preco_unitario);
             } catch (error) {
                 showAlert(error.message, false);
                 return;
@@ -128,10 +146,12 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             modalTitle.textContent = 'Novo Produto';
         }
+        // CORRIGIDO: Usa a classe nova para ABRIR
         modal.classList.remove('modal-oculto');
-        setTimeout(() => { document.getElementById('produto-nome').focus(); }, 100);
+        setTimeout(() => { inputNome.focus(); }, 100);
     };
 
+    // CORRIGIDO: Usa a classe nova para FECHAR
     const fecharModal = () => modal.classList.add('modal-oculto');
 
     const removerProduto = async (id) => {
@@ -152,15 +172,18 @@ document.addEventListener('DOMContentLoaded', () => {
     btnNovoProduto.addEventListener('click', () => abrirModal(false));
     btnCancelar.addEventListener('click', fecharModal);
     
-    // Listener do Formulário
+// Listener do Formulário (ATUALIZADO)
     produtoForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = inputId.value;
+        
+        // ATUALIZADO: Adiciona 'valor_custo'
         const produtoData = {
             nome: inputNome.value,
             descricao: inputDescricao.value,
             quantidade_em_estoque: parseInt(inputEstoque.value, 10),
-            preco_unitario: parseCurrency(inputPreco.value)
+            preco_unitario: parseCurrency(inputPreco.value),
+            valor_custo: parseCurrency(inputCusto.value) // --- NOVO ---
         };
 
         const method = id ? 'PUT' : 'POST';

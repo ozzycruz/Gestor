@@ -37,7 +37,7 @@ const runMigrations = async () => {
             console.log('MIGRANDO: A adicionar coluna "desconto_valor" a Vendas...');
             await dbRun('ALTER TABLE Vendas ADD COLUMN desconto_valor REAL DEFAULT 0;');
         }
-        const temAcrescimoTipo = colunasVenda.some(col => col.name === 'acrescimo_tipo');
+const temAcrescimoTipo = colunasVenda.some(col => col.name === 'acrescimo_tipo');
         if (!temAcrescimoTipo) {
             console.log('MIGRANDO: A adicionar coluna "acrescimo_tipo" a Vendas...');
             await dbRun('ALTER TABLE Vendas ADD COLUMN acrescimo_tipo TEXT;');
@@ -100,6 +100,20 @@ try {
         }
     } catch (err) {
         console.error('Erro durante a migração FormasPagamento:', err.message);
+    }
+
+    // --- ADICIONE ESTE NOVO BLOCO AQUI (MIGRAÇÃO 4) ---
+    try {
+        console.log('MIGRANDO: A verificar coluna de custo em Produtos...');
+        const colunasProduto = await dbAll("PRAGMA table_info(Produtos);");
+
+        const temValorCusto = colunasProduto.some(col => col.name === 'valor_custo');
+        if (!temValorCusto) {
+            console.log('MIGRANDO: A adicionar coluna "valor_custo" a Produtos...');
+            await dbRun('ALTER TABLE Produtos ADD COLUMN valor_custo REAL NOT NULL DEFAULT 0;');
+        }
+    } catch (err) {
+        console.error('Erro durante a migração Produtos (custo):', err.message);
     }
 };
 

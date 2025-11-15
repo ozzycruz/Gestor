@@ -178,16 +178,46 @@ const updateLancamentoValorPendente = (id, novoValor) => {
 
 // --- Funções de Relatórios ---
 
-const getDRE = (data_inicio, data_fim) => {
-    const sql = `
-        SELECT c.Nome AS CategoriaNome, l.Tipo, COALESCE(SUM(l.Valor), 0) AS TotalPorCategoria
+const getDRE = async (data_inicio, data_fim) => {
+    // 1. Precisamos de duas consultas: uma para Receitas/Despesas e outra para o Custo (CMV)
+
+    // Consulta 1: Busca Receitas (sem ser de produtos) e Despesas
+    const sqlGrupos = `
+        SELECT 
+            c.Nome AS CategoriaNome,
+            l.Tipo,
+            COALESCE(SUM(l.Valor), 0) AS TotalPorCategoria
         FROM Lancamentos l
         JOIN CategoriasFinanceiras c ON l.CategoriaID = c.id
-        WHERE l.Status = 'PAGO' AND l.DataPagamento BETWEEN ? AND ?
-        GROUP BY l.CategoriaID, l.Tipo, c.Nome
-        ORDER BY l.Tipo, TotalPorCategoria DESC
+        WHERE 
+            l.Status = 'PAGO'
+            AND l.DataPagamento BETWEEN ? AND ?
+        GROUP BY 
+            l.CategoriaID, l.Tipo, c.Nome
     `;
-    return dbAll(sql, [data_inicio, data_fim]);
+    
+    // Consulta 2: Calcula o Custo da Mercadoria Vendida (CMV)
+    // Multiplica a quantidade vendida (Itens_Venda) pelo custo (Produtos)
+    const sqlCMV = `
+        SELECT 
+            COALESCE(SUM(iv.quantidade * p.valor_custo), 0) AS TotalCMV
+        FROM Itens_Venda iv
+        JOIN Vendas v ON iv.venda_id = v.id
+        JOIN Produtos p ON iv.produto_id = p.id
+        JOIN Lancamentos l ON l.VendaID = v.id
+        WHERE 
+            l.Status = 'PAGO'
+            AND l.DataPagamento BETWEEN ? AND ?
+    `;
+
+    // Executa as duas consultas em paralelo
+    const [grupos, [cmvResult]] = await Promise.all([
+        dbAll(sqlGrupos, [data_inicio, data_fim]),
+        dbAll(sqlCMV, [data_inicio, data_fim])
+    ]);
+
+    // Retorna ambos os resultados para o Controller
+    return { grupos, totalCMV: cmvResult.TotalCMV };
 };
 
 module.exports = {
