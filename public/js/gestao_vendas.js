@@ -518,11 +518,30 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- FUNÇÃO DE IMPRESSÃO ---
-    const imprimirRecibo = () => {
-        if (!ultimaVendaSalva) return;
-        const template = document.getElementById('recibo-template');
-        const clone = template.content.cloneNode(true);
-        const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
+const imprimirRecibo = async () => { // <-- MUDANÇA 1: Tornou-se 'async'
+    if (!ultimaVendaSalva) return;
+
+    // --- MUDANÇA 2: Buscar os dados da Empresa (NOVO) ---
+    let dadosEmpresa = {};
+    try {
+        const response = await fetch(`${API_URL}/empresa`);
+        if (!response.ok) throw new Error('Erro ao buscar dados da empresa');
+        dadosEmpresa = await response.json();
+    } catch (err) {
+        console.error(err);
+        showAlert('Erro ao carregar dados da empresa para o recibo.', false);
+        // Continua mesmo se falhar, mas o recibo sairá com placeholders
+    }
+    // --- FIM DA MUDANÇA 2 ---
+
+    const template = document.getElementById('recibo-template');
+    const clone = template.content.cloneNode(true);
+    const cliente = listaClientes.find(c => c.id === ultimaVendaSalva.cliente_id);
+
+    // --- MUDANÇA 3: Preencher os dados da Empresa (NOVO) ---
+    clone.querySelector('[data-recibo="empresa-nome"]').textContent = dadosEmpresa.nome_fantasia || 'Nome da Empresa';
+    clone.querySelector('[data-recibo="empresa-endereco"]').textContent = dadosEmpresa.endereco || 'Endereço não configurado';
+    // --- FIM DA MUDANÇA 3 ---
 
         clone.querySelector('[data-recibo="venda-id"]').textContent = ultimaVendaSalva.id;
         clone.querySelector('[data-recibo="data"]').textContent = new Date(ultimaVendaSalva.data).toLocaleDateString('pt-BR');

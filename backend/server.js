@@ -15,6 +15,7 @@ const vendaRoutes = require('./routes/vendaRoutes');
 const ordemServicoRoutes = require('./routes/ordemServicoRoutes');
 const financeiroRoutes = require('./routes/financeiroRoutes');
 const relatorioRoutes = require('./routes/relatorioRoutes');
+const empresaRoutes = require('./routes/empresaRoutes');
 
 const app = express();
 app.use(cors());
@@ -29,6 +30,7 @@ app.use('/api', vendaRoutes);
 app.use('/api', ordemServicoRoutes);
 app.use('/api/financeiro', financeiroRoutes);
 app.use('/api/relatorios', relatorioRoutes);
+app.use('/api', empresaRoutes);
 
 // Função para iniciar o servidor
 const startServer = (port) => {

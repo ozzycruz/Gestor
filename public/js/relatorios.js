@@ -28,37 +28,55 @@ document.addEventListener('DOMContentLoaded', () => {
         // ... (código igual ao anterior)
     };
     // --- NOVO: FUNÇÃO DE IMPRESSÃO ---
-    const adicionarBotaoImprimir = (tituloRelatorio, conteudoHTML) => {
-        const btnImprimir = document.createElement('button');
-        btnImprimir.textContent = '🖨️ Imprimir / Salvar PDF';
-        btnImprimir.className = 'bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow mt-6';
-        
-        btnImprimir.addEventListener('click', () => {
-            // Pega o molde HTML que adicionámos
-            const template = document.getElementById('relatorio-template');
-            const clone = template.content.cloneNode(true);
-            
-            // Preenche os dados do cabeçalho do PDF
-            const periodo = `${inputDataInicio.valueAsDate.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${inputDataFim.valueAsDate.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}`;
-            clone.querySelector('[data-relatorio="titulo"]').textContent = tituloRelatorio;
-            clone.querySelector('[data-relatorio="periodo"]').textContent = periodo;
-            
-            // Injeta o conteúdo do relatório (a tabela ou o DRE)
-            clone.getElementById('relatorio-conteudo-pdf').innerHTML = conteudoHTML;
+const adicionarBotaoImprimir = (tituloRelatorio, conteudoHTML, usarPeriodo = true) => {
+    const btnImprimir = document.createElement('button');
+    btnImprimir.innerHTML = '&#128424; Imprimir / Salvar PDF'; // Ícone de impressora
+    btnImprimir.className = 'bg-gray-700 hover:bg-gray-800 text-white font-bold py-2 px-4 rounded-lg shadow mt-6';
 
-            const htmlContent = new XMLSerializer().serializeToString(clone);
-            const filename = `${tituloRelatorio.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+    // MUDANÇA 1: O listener do botão agora é 'async'
+    btnImprimir.addEventListener('click', async () => { 
 
-            // Envia para o 'main process' do Electron (igual ao recibo)
-            if (window.electronAPI) {
-                window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
-            } else {
-                alert('Funcionalidade de impressão não disponível (window.electronAPI não encontrado).');
-            }
-        });
-        
-        areaRelatorio.appendChild(btnImprimir);
-    };
+        // --- MUDANÇA 2: Buscar os dados da Empresa (NOVO) ---
+        let dadosEmpresa = {};
+        try {
+            const response = await fetch(`${API_URL}/empresa`);
+            if (!response.ok) throw new Error('Erro ao buscar dados da empresa');
+            dadosEmpresa = await response.json();
+        } catch (err) {
+            console.error(err);
+            showAlert('Erro ao carregar dados da empresa para o relatório.', false);
+        }
+        // --- FIM DA MUDANÇA 2 ---
+
+        const template = document.getElementById('relatorio-template');
+        const clone = template.content.cloneNode(true);
+
+        // --- MUDANÇA 3: Preencher os dados da Empresa (NOVO) ---
+        clone.querySelector('[data-relatorio="empresa-nome"]').textContent = dadosEmpresa.nome_fantasia || 'Nome da Empresa';
+        clone.querySelector('[data-relatorio="empresa-endereco"]').textContent = dadosEmpresa.endereco || 'Endereço não configurado';
+        // --- FIM DA MUDANÇA 3 ---
+
+        let periodo = "Período Completo";
+        if (usarPeriodo && inputDataInicio.valueAsDate && inputDataFim.valueAsDate) {
+             periodo = `${inputDataInicio.valueAsDate.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${inputDataFim.valueAsDate.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}`;
+        }
+
+        clone.querySelector('[data-relatorio="titulo"]').textContent = tituloRelatorio;
+        clone.querySelector('[data-relatorio="periodo"]').textContent = periodo;
+        clone.getElementById('relatorio-conteudo-pdf').innerHTML = conteudoHTML;
+
+        const htmlContent = new XMLSerializer().serializeToString(clone);
+        const filename = `${tituloRelatorio.replace(/ /g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+
+        if (window.electronAPI) {
+            window.electronAPI.send('print-to-pdf', { html: htmlContent, name: filename });
+        } else {
+            alert('Funcionalidade de impressão não disponível (window.electronAPI não encontrado).');
+        }
+    });
+
+    areaRelatorio.appendChild(btnImprimir);
+};
 
     // --- Funções do Relatório DRE (O seu código antigo) ---
     

@@ -57,56 +57,25 @@
             body { font-family: 'Arial', sans-serif; margin: 0; padding: 20px; color: #333; font-size: 12px; }
             .relatorio-box { border: 1px solid #eee; padding: 20px; max-width: 800px; margin: auto; }
             
-            /* --- CABEÇALHO CORRIGIDO --- */
-            .header .empresa h1 { 
-                font-size: 20px; 
-                margin: 0; 
-                color: #000;
-            }
-            .header .empresa p { 
-                margin: 0; 
-                font-size: 12px; 
-                color: #555; 
-            }
-            .header .detalhes { 
-                margin-top: 15px; 
-                border-top: 2px solid #000; 
-                padding-top: 10px;
-            }
-            .header .detalhes h2 { 
-                font-size: 18px; 
-                margin: 0 0 5px 0; 
-                color: #333;
-            }
-            .header .detalhes p {
-                margin: 0;
-                font-size: 12px;
-            }
+            /* --- CABEÇALHO CORRIGIDO (Sem Flex) --- */
+            .header .empresa h1 { font-size: 20px; margin: 0; color: #000; }
+            .header .empresa p { margin: 0; font-size: 12px; color: #555; }
+            .header .detalhes { margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; }
+            .header .detalhes h2 { font-size: 18px; margin: 0 0 5px 0; color: #333; }
+            .header .detalhes p { margin: 0; font-size: 12px; }
             /* --- FIM DA CORREÇÃO --- */
 
             .relatorio-conteudo { margin-top: 20px; }
             
-            /* Estilos do DRE (copiados de relatorios.js) */
+            /* Estilos do DRE */
             .dre-container { font-size: 14px; }
             .dre-section h3 { font-size: 1.25rem; font-weight: 600; color: #374151; }
-            .dre-section .details { padding-left: 1rem; border-left: 2px solid #e5e7eb; margin-top: 4px; }
-            .dre-section .details p { margin: 2px 0; color: #4b5563; }
-            .dre-section .details .total { font-weight: bold; color: #1f2937; margin-top: 4px; }
-            .dre-total-bruto { border-top: 1px solid #ccc; padding-top: 8px; font-size: 1.5rem; font-weight: bold; color: #2563EB; }
-            .dre-total-liquido { border-top: 2px solid #1f2937; padding-top: 1rem; margin-top: 1rem; font-size: 1.75rem; font-weight: bold; }
-            .text-green-600 { color: #16A34A; }
-            .text-red-600 { color: #DC2626; }
+            /* ... (e outros estilos .dre-...) ... */
             
-            /* Estilos da Tabela (para Produtos e Stock) */
+            /* Estilos da Tabela */
             .report-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
             .report-table th, .report-table td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-            .report-table th { background-color: #f9f9f9; font-size: 11px; text-transform: uppercase; }
-            .report-table .text-right { text-align: right; }
-            .report-table .text-center { text-align: center; }
-            .report-table .font-bold { font-weight: bold; }
-            .report-table .text-red-600 { color: #DC2626; }
-            .report-table .text-green-600 { color: #16A34A; }
-            .report-table .text-blue-600 { color: #2563EB; }
+            /* ... (e outros estilos .report-table) ... */
             
         </style>
     </head>
@@ -115,8 +84,8 @@
             
             <div class="header">
                 <div class="empresa">
-                    <h1>Saulo Cardoso Oficina de Motos</h1>
-                    <p>Avenida Central, 33 - Inajá-PE</p>
+                    <h1 data-relatorio="empresa-nome">[Nome da Empresa]</h1>
+                    <p data-relatorio="empresa-endereco">[Endereço da Empresa]</p>
                 </div>
                 
                 <div class="detalhes">

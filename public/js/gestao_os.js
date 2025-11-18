@@ -305,12 +305,30 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
     
-        const imprimirOS = () => {
-        if (!osAtual) return showAlert('Nenhuma OS aberta para imprimir.', false);
-        const template = document.getElementById('os-recibo-template');
-        if (!template) return showAlert('Molde de impressão não encontrado no HTML.', false);
+const imprimirOS = async () => { // <-- MUDANÇA 1: Tornou-se 'async'
+    if (!osAtual) return showAlert('Nenhuma OS aberta para imprimir.', false);
 
-        const clone = template.content.cloneNode(true);
+    // --- MUDANÇA 2: Buscar os dados da Empresa (NOVO) ---
+    let dadosEmpresa = {};
+    try {
+        const response = await fetch(`${API_URL}/empresa`);
+        if (!response.ok) throw new Error('Erro ao buscar dados da empresa');
+        dadosEmpresa = await response.json();
+    } catch (err) {
+        console.error(err);
+        showAlert('Erro ao carregar dados da empresa para o recibo.', false);
+    }
+    // --- FIM DA MUDANÇA 2 ---
+
+    const template = document.getElementById('os-recibo-template');
+    if (!template) return showAlert('Molde de impressão não encontrado no HTML.', false);
+
+    const clone = template.content.cloneNode(true);
+
+    // --- MUDANÇA 3: Preencher os dados da Empresa (NOVO) ---
+    clone.querySelector('[data-recibo="empresa-nome"]').textContent = dadosEmpresa.nome_fantasia || 'Nome da Empresa';
+    clone.querySelector('[data-recibo="empresa-endereco"]').textContent = dadosEmpresa.endereco || 'Endereço não configurado';
+    // --- FIM DA MUDANÇA 3 ---
         
         clone.querySelector('[data-recibo="os-id"]').textContent = osAtual.id;
         clone.querySelector('[data-recibo="data"]').textContent = new Date(osAtual.data_entrada).toLocaleDateString('pt-BR');

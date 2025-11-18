@@ -266,6 +266,18 @@ const createTables = async () => {
             CategoriaID INTEGER REFERENCES CategoriasFinanceiras(id) ON DELETE SET NULL,
             ContaCaixaID INTEGER REFERENCES ContasCaixa(id) ON DELETE SET NULL
         );
+        /* ============================================= */
+        /* ===== NOVO: TABELA DE DADOS DA EMPRESA ===== */
+        /* ============================================= */
+        CREATE TABLE IF NOT EXISTS Empresa (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            nome_fantasia TEXT,
+            razao_social TEXT,
+            cnpj_cpf TEXT,
+            endereco TEXT,
+            telefone TEXT,
+            email TEXT
+        );
     `;
 
     try {
@@ -307,6 +319,10 @@ const seedInitialData = async () => {
         
         // O UPDATE que você adicionou
         await dbRun("UPDATE FormasPagamento SET aceitaParcelas = 1, maxParcelas = 12 WHERE Nome = 'Cartão de Crédito';");
+        /* ============================================= */
+        /* ===== NOVO: INSERE A LINHA DA EMPRESA ===== */
+        /* ============================================= */
+        await dbRun("INSERT OR IGNORE INTO Empresa (id, nome_fantasia) VALUES (1, 'Nome da Sua Empresa Aqui');");
         
         console.log('🌱 Sementeira concluída.');
     } catch (err) {
